@@ -25,8 +25,9 @@ urlpatterns = [
     path('', include('geoprod_cm.urls')),
     path('api-auth/', include('rest_framework.urls')),
     
-    # Page d'accueil temporaire
-    path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    # Pages
+    path('', TemplateView.as_view(template_name='carte.html'), name='home'),
+    path('carte/', TemplateView.as_view(template_name='carte.html'), name='carte'),
 ]
 
 if settings.DEBUG:

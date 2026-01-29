@@ -11,6 +11,7 @@ env/
 venv/
 .venv/
 ENV/
+backend/data/gadm41_CMR_*.json
 
 # Environnement
 .env

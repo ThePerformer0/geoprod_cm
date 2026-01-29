@@ -1,0 +1,195 @@
+/* Styles personnalisés pour la carte interactive - Thème Vert Agricole */
+
+/* Ajustements pour la carte Leaflet */
+#map {
+    z-index: 1;
+}
+
+/* Sidebars en overlay (position absolute) */
+#sidebar-left,
+#sidebar-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: all 0.3s ease-in-out;
+}
+
+#sidebar-left {
+    left: 0;
+}
+
+#sidebar-right {
+    right: 0;
+}
+
+/* Sidebar gauche rétractée - afficher seulement la barre d'icônes */
+#sidebar-left.collapsed {
+    width: 60px !important;
+}
+
+#sidebar-left.collapsed .sidebar-content {
+    display: none;
+}
+
+#sidebar-left.collapsed .sidebar-icons {
+    display: flex;
+}
+
+/* Sidebar droite rétractée */
+#sidebar-right.collapsed {
+    width: 60px !important;
+}
+
+#sidebar-right.collapsed .sidebar-content {
+    display: none;
+}
+
+#sidebar-right.collapsed .sidebar-icons {
+    display: flex;
+}
+
+/* Barre d'icônes verticale pour sidebars rétractées */
+.sidebar-icons {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 20px;
+    height: 100%;
+}
+
+.sidebar-icons .icon-item {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 8px;
+    color: #16a34a;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sidebar-icons .icon-item:hover {
+    background: #16a34a;
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Animations pour les tooltips Leaflet */
+.leaflet-tooltip {
+    background-color: rgba(0, 0, 0, 0.8);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    padding: 8px 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Style pour les polygones de la carte */
+.leaflet-interactive {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.leaflet-interactive:hover {
+    filter: brightness(1.1);
+}
+
+/* Popup personnalisée */
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+    margin: 16px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Contrôles de zoom personnalisés - Thème vert */
+.leaflet-control-zoom a {
+    background-color: white !important;
+    color: #16a34a !important;
+    border: 2px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    font-weight: bold;
+}
+
+.leaflet-control-zoom a:hover {
+    background-color: #16a34a !important;
+    color: white !important;
+}
+
+/* Légende de la carte */
+.legend-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.legend-color {
+    width: 24px;
+    height: 16px;
+    border-radius: 4px;
+    margin-right: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Scrollbar personnalisée pour les sidebars */
+aside::-webkit-scrollbar {
+    width: 8px;
+}
+
+aside::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+aside::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+aside::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Animation de chargement */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Shadow pour les sidebars en overlay */
+#sidebar-left,
+#sidebar-right {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+
+    #sidebar-left,
+    #sidebar-right {
+        width: 280px !important;
+    }
+
+    #sidebar-left.collapsed,
+    #sidebar-right.collapsed {
+        width: 50px !important;
+    }
+}
