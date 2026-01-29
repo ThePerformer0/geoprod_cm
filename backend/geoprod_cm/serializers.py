@@ -1,3 +1,4 @@
+import json
 from rest_framework import serializers
 from .models import Region, Departement, Arrondissement, Production
 
@@ -62,3 +63,27 @@ class ProductionSerializer(serializers.ModelSerializer):
     
     def get_zone_nom(self, obj):
         return obj.get_zone()
+
+
+class GeoJSONFeatureSerializer(serializers.Serializer):
+    """Serializer pour une feature GeoJSON avec données de production"""
+    type = serializers.CharField(default='Feature')
+    id = serializers.IntegerField()
+    properties = serializers.DictField()
+    geometry = serializers.DictField()
+
+
+class MapDataSerializer(serializers.Serializer):
+    """Serializer pour les données cartographiques (GeoJSON FeatureCollection)"""
+    type = serializers.CharField(default='FeatureCollection')
+    features = GeoJSONFeatureSerializer(many=True)
+    metadata = serializers.DictField()
+
+
+class AutocompleteSerializer(serializers.Serializer):
+    """Serializer pour l'autocomplétion des lieux"""
+    id = serializers.IntegerField()
+    nom = serializers.CharField()
+    type = serializers.CharField()  # 'region', 'departement', 'arrondissement'
+    hierarchie = serializers.CharField()  # Ex: "Centre > Mfoundi > Yaoundé"
+    niveau_administratif = serializers.CharField()

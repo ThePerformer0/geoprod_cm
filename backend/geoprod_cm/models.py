@@ -25,7 +25,7 @@ class Region(models.Model):
 class Departement(models.Model):
     id = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=100)
-    code = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    code = models.CharField(max_length=10, null=True, blank=True)
     region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name='departements')
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
@@ -47,7 +47,7 @@ class Departement(models.Model):
 class Arrondissement(models.Model):
     id = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=100)
-    code = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    code = models.CharField(max_length=10, null=True, blank=True)
     departement = models.ForeignKey(Departement, on_delete=models.CASCADE, related_name='arrondissements')
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)

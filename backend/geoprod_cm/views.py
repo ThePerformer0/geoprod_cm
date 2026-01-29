@@ -1,13 +1,20 @@
+import json
 from itertools import count
+from decimal import Decimal
+from django.http import HttpResponse
+from django.db.models import Sum, Avg, Max, Min, Q, Count
 from rest_framework import viewsets, filters, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum, Avg, Max, Min
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+
 from .models import Region, Departement, Arrondissement, Production
 from .serializers import (
     RegionSerializer, DepartementSerializer, 
-    ArrondissementSerializer, ProductionSerializer
+    ArrondissementSerializer, ProductionSerializer,
+    MapDataSerializer, AutocompleteSerializer
 )
 
 
@@ -68,7 +75,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
         # Par secteur
         par_secteur = Production.objects.values('secteur').annotate(
             count=Sum('quantite'),
-            nombre=count('id')
+            nombre=Count('id')
         )
         
         # Par année
@@ -101,3 +108,264 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
             'annees': list(annees),
             'produits': list(produits),
         })
+    
+    @action(detail=False, methods=['get'])
+    def map_data(self, request):
+        """
+        Endpoint optimisé pour la carte interactive
+        Retourne un GeoJSON avec les géométries et les données de production agrégées
+        
+        Paramètres:
+        - secteur: agriculture, elevage, peche
+        - produit: nom du produit
+        - annee: année
+        - niveau: region, departement, arrondissement
+        """
+        secteur = request.query_params.get('secteur')
+        produit = request.query_params.get('produit')
+        annee = request.query_params.get('annee')
+        niveau = request.query_params.get('niveau', 'region')
+        
+        # Construire le filtre
+        filters = {}
+        if secteur:
+            filters['secteur'] = secteur
+        if produit:
+            filters['produit'] = produit
+        if annee:
+            filters['annee'] = int(annee)
+        filters['niveau_administratif'] = niveau
+        
+        # Récupérer les productions
+        productions = Production.objects.filter(**filters)
+        
+        # Agréger par zone
+        if niveau == 'region':
+            aggregated = productions.values('region').annotate(
+                total=Sum('quantite'),
+                unite=Min('unite')
+            )
+            zones = Region.objects.filter(id__in=[p['region'] for p in aggregated if p['region']])
+        elif niveau == 'departement':
+            aggregated = productions.values('departement').annotate(
+                total=Sum('quantite'),
+                unite=Min('unite')
+            )
+            zones = Departement.objects.filter(id__in=[p['departement'] for p in aggregated if p['departement']])
+        else:
+            aggregated = productions.values('arrondissement').annotate(
+                total=Sum('quantite'),
+                unite=Min('unite')
+            )
+            zones = Arrondissement.objects.filter(id__in=[p['arrondissement'] for p in aggregated if p['arrondissement']])
+        
+        # Créer un dictionnaire des totaux
+        totals_dict = {}
+        unite_dict = {}
+        for item in aggregated:
+            zone_id = item.get('region') or item.get('departement') or item.get('arrondissement')
+            if zone_id:
+                totals_dict[zone_id] = float(item['total'])
+                unite_dict[zone_id] = item['unite']
+        
+        # Construire le GeoJSON
+        features = []
+        for zone in zones:
+            if not zone.geom_json:
+                continue
+            
+            try:
+                geometry = json.loads(zone.geom_json)
+            except:
+                continue
+            
+            total = totals_dict.get(zone.id, 0)
+            unite = unite_dict.get(zone.id, '')
+            
+            feature = {
+                'type': 'Feature',
+                'id': zone.id,
+                'properties': {
+                    'id': zone.id,
+                    'nom': zone.nom,
+                    'code': zone.code,
+                    'quantite': total,
+                    'unite': unite,
+                },
+                'geometry': geometry
+            }
+            
+            # Ajouter des infos hiérarchiques si nécessaire
+            if niveau == 'departement':
+                feature['properties']['region_nom'] = zone.region.nom
+            elif niveau == 'arrondissement':
+                feature['properties']['departement_nom'] = zone.departement.nom
+                feature['properties']['region_nom'] = zone.departement.region.nom
+            
+            features.append(feature)
+        
+        # Calculer les métadonnées
+        total_production = sum(totals_dict.values())
+        zone_dominante = None
+        max_production = 0
+        
+        if totals_dict:
+            max_zone_id = max(totals_dict, key=totals_dict.get)
+            max_production = totals_dict[max_zone_id]
+            zone_dominante_obj = zones.filter(id=max_zone_id).first()
+            if zone_dominante_obj:
+                zone_dominante = zone_dominante_obj.nom
+        
+        metadata = {
+            'secteur': secteur,
+            'produit': produit,
+            'annee': annee,
+            'niveau': niveau,
+            'total_production': total_production,
+            'zone_dominante': zone_dominante,
+            'production_max': max_production,
+            'nombre_zones': len(features),
+            'unite': unite_dict.get(list(unite_dict.keys())[0]) if unite_dict else '',
+        }
+        
+        result = {
+            'type': 'FeatureCollection',
+            'features': features,
+            'metadata': metadata
+        }
+        
+        return Response(result)
+    
+    @action(detail=False, methods=['get'])
+    def autocomplete(self, request):
+        """
+        Endpoint pour l'autocomplétion des lieux
+        Paramètre: q (query string)
+        """
+        query = request.query_params.get('q', '').strip()
+        
+        if len(query) < 2:
+            return Response([])
+        
+        results = []
+        
+        # Rechercher dans les régions
+        regions = Region.objects.filter(nom__icontains=query)[:5]
+        for region in regions:
+            results.append({
+                'id': region.id,
+                'nom': region.nom,
+                'type': 'region',
+                'hierarchie': region.nom,
+                'niveau_administratif': 'region'
+            })
+        
+        # Rechercher dans les départements
+        departements = Departement.objects.filter(nom__icontains=query).select_related('region')[:5]
+        for dept in departements:
+            results.append({
+                'id': dept.id,
+                'nom': dept.nom,
+                'type': 'departement',
+                'hierarchie': f"{dept.region.nom} > {dept.nom}",
+                'niveau_administratif': 'departement'
+            })
+        
+        # Rechercher dans les arrondissements
+        arrondissements = Arrondissement.objects.filter(
+            nom__icontains=query
+        ).select_related('departement__region')[:5]
+        for arr in arrondissements:
+            results.append({
+                'id': arr.id,
+                'nom': arr.nom,
+                'type': 'arrondissement',
+                'hierarchie': f"{arr.departement.region.nom} > {arr.departement.nom} > {arr.nom}",
+                'niveau_administratif': 'arrondissement'
+            })
+        
+        # Limiter à 15 résultats
+        return Response(results[:15])
+    
+    @action(detail=False, methods=['get'])
+    def export_excel(self, request):
+        """
+        Exporte les données de production en Excel
+        Paramètres: secteur, produit, annee, niveau_administratif, region, departement
+        """
+        # Récupérer les filtres
+        filters = {}
+        if request.query_params.get('secteur'):
+            filters['secteur'] = request.query_params.get('secteur')
+        if request.query_params.get('produit'):
+            filters['produit'] = request.query_params.get('produit')
+        if request.query_params.get('annee'):
+            filters['annee'] = int(request.query_params.get('annee'))
+        if request.query_params.get('niveau_administratif'):
+            filters['niveau_administratif'] = request.query_params.get('niveau_administratif')
+        if request.query_params.get('region'):
+            filters['region_id'] = int(request.query_params.get('region'))
+        if request.query_params.get('departement'):
+            filters['departement_id'] = int(request.query_params.get('departement'))
+        
+        # Récupérer les données
+        productions = Production.objects.filter(**filters).select_related(
+            'region', 'departement', 'arrondissement'
+        ).order_by('-annee', 'secteur', 'produit')
+        
+        # Créer le workbook Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Productions"
+        
+        # Styles
+        header_fill = PatternFill(start_color="3498DB", end_color="3498DB", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        
+        # En-têtes
+        headers = [
+            'Région', 'Département', 'Arrondissement', 'Secteur', 
+            'Produit', 'Quantité', 'Unité', 'Année', 'Source'
+        ]
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+        
+        # Données
+        for row_num, prod in enumerate(productions, 2):
+            ws.cell(row=row_num, column=1, value=prod.region.nom if prod.region else '')
+            ws.cell(row=row_num, column=2, value=prod.departement.nom if prod.departement else '')
+            ws.cell(row=row_num, column=3, value=prod.arrondissement.nom if prod.arrondissement else '')
+            ws.cell(row=row_num, column=4, value=prod.get_secteur_display())
+            ws.cell(row=row_num, column=5, value=prod.produit)
+            ws.cell(row=row_num, column=6, value=float(prod.quantite))
+            ws.cell(row=row_num, column=7, value=prod.unite)
+            ws.cell(row=row_num, column=8, value=prod.annee)
+            ws.cell(row=row_num, column=9, value=prod.source_donnee)
+        
+        # Ajuster la largeur des colonnes
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column].width = adjusted_width
+        
+        # Créer la réponse HTTP
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=productions_cameroun.xlsx'
+        
+        wb.save(response)
+        return response
