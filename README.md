@@ -1,71 +1,69 @@
-# 🌍 Plateforme SIG des Bassins de Production - Cameroun
+# 🌍 GeoProd_CM - Plateforme SIG des Bassins de Production
 
 ## 📋 Description
-Plateforme web SIG institutionnelle pour visualiser et analyser les bassins de production économique du Cameroun (agriculture, élevage, pêche).
+**GeoProd_CM** est une plateforme web SIG institutionnelle de pointe conçue pour la visualisation, l'analyse et l'exportation des données de production économique (Agriculture, Élevage, Pêche) sur l'ensemble du territoire camerounais.
 
-## 🎯 Objectif
-Développer un outil de visualisation cartographique et d'analyse des données de production par bassins économiques et niveaux administratifs.
+## 🚀 Fonctionnalités Clés
 
-## 🏗️ Architecture
-- **Backend** : Django + Django REST Framework
-- **Base de données** : PostgreSQL/PostGIS (Neon.tech)
-- **Frontend** : HTML/CSS/JavaScript + Leaflet
-- **API** : RESTful JSON
+### 🗺️ Carte Interactive (Leaflet)
+- **Visualisation Choroplèthe** : Analyse visuelle de la production par Région, Département ou Arrondissement.
+- **Sidebars Intelligentes** : Filtres avancés (Secteur, Produit, Année) et panneau d'informations contextuelles.
+- **Interactivité** : Tooltips dynamiques et détails au clic sur les zones géographiques.
 
-## 🚀 Installation
+### 📊 Analyse et Données
+- **Dashboard de Synthèse** : Vue d'ensemble immédiate des indicateurs clés (Production totale, zone dominante, records).
+- **Tableaux Dynamiques** : Consultation structurée des données avec pagination optimisée (20 records/page).
+- **Recherche Instantanée** : Autocomplétion intelligente des lieux (Régions, Départements, Arrondissements).
+- **Export Excel** : Génération de fichiers Excel avec noms dynamiques et formatage professionnel.
+
+### 🎨 Design & Marque
+- **Identité Visuelle** : Logo personnalisé aux couleurs nationales du Cameroun.
+- **UI Premium** : Thème vert agricole, design responsive et animations fluides avec Tailwind CSS.
+
+## 🏗️ Architecture Technique
+
+- **Backend** : Django 4.2 + Django REST Framework.
+- **Performance** : Utilisation de `select_related` et pagination serveur pour des temps de réponse ultra-rapides.
+- **Servage Statique** : Whitenoise configuré pour la production (compression & cache).
+- **Base de données** : PostgreSQL avec gestion des géométries JSON (compatible Cloud/Neon).
+- **Frontend** : Vanilla JavaScript, Leaflet.js, Tailwind CSS, Font Awesome.
+
+## 🚀 Installation & Déploiement
 
 ### Prérequis
 - Python 3.8+
-- PostgreSQL avec PostGIS
-- Git
+- PostgreSQL
+- `pip install -r requirements.txt`
 
-### Installation locale
-```bash
-# Cloner le dépôt
-git clone [url-du-repo]
-
-# Créer un environnement virtuel
-python -m venv env
-source env/bin/activate  # Linux/Mac
-# ou
-env\Scripts\activate     # Windows
-
-# Installer les dépendances
-pip install -r requirements.txt
-
-# Configurer les variables d'environnement
-cp .env.example .env
-# Éditer .env avec vos configurations
-
-# Lancer les migrations
-python manage.py migrate
-
-# Créer un superutilisateur
-python manage.py createsuperuser
-
-# Lancer le serveur
-python manage.py runserver
-
+### Variables d'Environnement (.env)
+```env
+DEBUG=False
+SECRET_KEY=votre_cle_secrete
+DATABASE_URL=postgresql://user:password@host/dbname
+ALLOWED_HOSTS=votre_domaine.com,localhost
 ```
 
-## 📁 Structure du projet
+### Lancement Local
+```bash
+# Dans le dossier backend/
+python manage.py migrate
+python manage.py runserver
+```
 
-    backend/
-    ├── config/           # Configuration Django
-    ├── geoprod_cm/       # Application principale
-    ├── static/           # Fichiers statiques
-    ├── templates/        # Templates HTML
-    ├── requirements.txt  # Dépendances Python
-    └── manage.py         # Script de gestion
+### Commandes de Gestion (Import Données)
+```bash
+# Importer les géométries (GeoJSON)
+python manage.py import_geometries
 
-## 🔧 Technologies utilisées
+# Générer des données de test réalistes
+python manage.py import_sample_productions
+```
 
-- **Backend** : Django 4.2, Django REST Framework
+## 🔧 Dépendances Principales
+- `Django`, `djangorestframework`
+- `whitenoise`, `gunicorn`
+- `openpyxl` (Export Excel)
+- `dj-database-url`, `python-dotenv`
 
-- **Base de données** : PostgreSQL/PostGIS
-
-- **Cartographie** : Leaflet.js
-
-- **Visualisation** : Chart.js
-
-## 👥 Auteurs
+---
+© 2026 - **GeoProd_CM** | SIG Bassins de Production Cameroun

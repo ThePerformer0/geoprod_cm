@@ -1,0 +1,237 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse des Données - Bassins de Production Cameroun</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome (Free CDN officiel) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/carte.css' %}">
+    <link rel="stylesheet" href="{% static 'css/donnees.css' %}">
+
+    <script>
+        // Configuration Tailwind personnalisée - Thème Vert
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#16a34a',
+                        secondary: '#15803d',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg relative z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo"
+                        class="h-12 w-12 object-contain bg-white rounded-lg p-1 shadow-sm">
+                    <div>
+                        <h1 class="text-2xl font-bold">Plateforme SIG - Cameroun</h1>
+                        <p class="text-green-100 text-sm">Bassins de Production Économique</p>
+                    </div>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/carte/" class="px-4 py-2 bg-green-700 rounded-lg hover:bg-green-600 transition">
+                        <i class="fas fa-map mr-2"></i>Carte
+                    </a>
+                    <a href="/donnees/" class="px-4 py-2 bg-white text-green-600 rounded-lg font-semibold">
+                        <i class="fas fa-table mr-2"></i>Données
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area with Sidebar -->
+    <div class="relative flex-grow flex h-[calc(100vh-80px)] overflow-hidden">
+
+        <!-- Sidebar Gauche - Filtres -->
+        <aside id="sidebar-left"
+            class="w-80 bg-white border-r border-gray-200 shadow-xl z-30 transition-all duration-300 collapsed">
+            <!-- Barre d'icônes -->
+            <div class="sidebar-icons">
+                <div class="icon-item" title="Filtres">
+                    <i class="fas fa-filter text-xl"></i>
+                </div>
+                <div class="icon-item" title="Secteur">
+                    <i class="fas fa-layer-group text-xl"></i>
+                </div>
+                <div class="icon-item" title="Produit">
+                    <i class="fas fa-seedling text-xl"></i>
+                </div>
+                <div class="icon-item" title="Lieu">
+                    <i class="fas fa-map-marker-alt text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Contenu principal -->
+            <div class="sidebar-content p-6 h-full overflow-y-auto">
+                <button id="toggle-left"
+                    class="absolute -right-3 top-6 bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-green-700 transition z-10">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-filter mr-2 text-green-600"></i>
+                    Filtres d'Analyse
+                </h2>
+
+                <form id="filter-form" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Secteur</label>
+                        <select id="secteur" name="secteur"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="agriculture">Agriculture</option>
+                            <option value="elevage">Élevage</option>
+                            <option value="peche">Pêche</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Produit</label>
+                        <select id="produit" name="produit"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Année</label>
+                        <select id="annee" name="annee"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        </select>
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Lieu (Région, Dépt...)</label>
+                        <div class="relative">
+                            <input type="text" id="lieu-search" placeholder="Cameroun entier..."
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 pl-10"
+                                autocomplete="off">
+                            <i
+                                class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="hidden" id="lieu-id">
+                            <input type="hidden" id="lieu-type">
+                        </div>
+                        <div id="autocomplete-results"
+                            class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl hidden overflow-hidden">
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-4 border-t border-gray-100">
+                        <button type="submit"
+                            class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-md flex items-center justify-center">
+                            <i class="fas fa-sync-alt mr-2"></i> Appliquer
+                        </button>
+                        <button type="button" id="reset-filters"
+                            class="w-full bg-gray-100 text-gray-600 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
+                            Réinitialiser
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </aside>
+
+        <!-- Main Content (Table + Synthesis) -->
+        <main class="flex-grow p-8 px-16 overflow-y-auto bg-gray-50 transition-all duration-300">
+            <div class="max-w-6xl mx-auto">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 id="page-title" class="text-2xl font-bold text-gray-800">Analyse de la Production</h2>
+                        <p id="page-subtitle" class="text-gray-500">Synthèse des données issues de la base SIG</p>
+                    </div>
+                    <button id="export-excel"
+                        class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition shadow-md flex items-center">
+                        <i class="fas fa-file-excel mr-2"></i> Export Excel
+                    </button>
+                </div>
+
+                <!-- Synthèse Section (Replacement for Graphs) -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Production Totale</p>
+                        <p id="synth-total" class="text-2xl font-bold text-green-600">-</p>
+                        <div class="mt-2 text-xs text-gray-400">Pour les filtres sélectionnés</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Zone Principale</p>
+                        <p id="synth-top-zone" class="text-xl font-bold text-gray-800 truncate">-</p>
+                        <div class="mt-2 text-xs text-gray-400">Plus forte production</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Nombre d'Entrées</p>
+                        <p id="synth-count" class="text-2xl font-bold text-gray-800">-</p>
+                        <div class="mt-2 text-xs text-gray-400">Total des records trouvés</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Secteur Dominant</p>
+                        <p id="synth-top-secteur" class="text-xl font-bold text-emerald-600">-</p>
+                        <div class="mt-2 text-xs text-gray-400">Répartition majeure</div>
+                    </div>
+                </div>
+
+                <!-- Table Panel -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Région</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Département</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Arrondissement</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Produit</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Quantité</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Unité</th>
+                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm text-center">Année</th>
+                                </tr>
+                            </thead>
+                            <tbody id="data-table-body" class="divide-y divide-gray-50">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="table-empty" class="py-24 text-center hidden">
+                        <i class="fas fa-database text-6xl text-gray-100 mb-4"></i>
+                        <p class="text-gray-400 italic">Aucune donnée trouvée</p>
+                    </div>
+                    <div id="table-loading" class="py-24 text-center">
+                        <i class="fas fa-circle-notch fa-spin text-4xl text-green-600 mb-4"></i>
+                        <p class="text-gray-500">Chargement des données...</p>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div
+                        class="bg-white px-8 py-6 flex items-center justify-between border-t border-gray-100 font-medium">
+                        <p id="pagination-info" class="text-sm text-gray-500">---</p>
+                        <div class="flex space-x-3">
+                            <button id="prev-page"
+                                class="px-5 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-30">Précédent</button>
+                            <button id="next-page"
+                                class="px-5 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-30">Suivant</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/donnees.js' %}"></script>
+</body>
+
+</html>

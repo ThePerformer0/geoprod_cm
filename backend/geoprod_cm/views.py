@@ -58,7 +58,9 @@ class ArrondissementViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Production.objects.all().order_by('-annee', 'produit')
+    queryset = Production.objects.all().select_related(
+        'region', 'departement', 'arrondissement'
+    ).order_by('-annee', 'produit')
     serializer_class = ProductionSerializer
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['produit', 'region__nom', 'departement__nom', 'arrondissement__nom']
@@ -67,33 +69,38 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['get'])
     def statistiques(self, request):
-        """Retourne des statistiques globales sur les productions"""
-        # Aggrégations
-        total_productions = Production.objects.count()
-        total_quantite = Production.objects.aggregate(total=Sum('quantite'))['total'] or 0
+        """Retourne des statistiques filtrées sur les productions pour la synthèse"""
+        queryset = self.filter_queryset(self.get_queryset())
         
-        # Par secteur
-        par_secteur = Production.objects.values('secteur').annotate(
+        # Aggrégations de base
+        total_productions = queryset.count()
+        total_quantite = queryset.aggregate(total=Sum('quantite'))['total'] or 0
+        
+        # Par secteur pour trouver le secteur dominant
+        par_secteur = queryset.values('secteur').annotate(
             count=Sum('quantite'),
             nombre=Count('id')
-        )
+        ).order_by('-count')
         
-        # Par année
-        par_annee = Production.objects.values('annee').annotate(
-            total=Sum('quantite')
-        ).order_by('-annee')[:5]
+        # Trouver la zone dominante (nom de la zone avec la plus grande production)
+        # On regarde d'abord si un niveau administratif est filtré
+        zone_dominante = "N/A"
+        niveau = request.query_params.get('niveau_administratif')
         
-        # Top 10 produits
-        top_produits = Production.objects.values('produit').annotate(
-            total=Sum('quantite')
-        ).order_by('-total')[:10]
-        
+        # On détermine la zone dominante en agrégeant par le niveau le plus précis disponible dans le filtrage
+        if total_productions > 0:
+            # On cherche la zone avec Max production dans le queryset filtré
+            # Pour la synthèse simplifiée, on prend le premier résultat agrégé
+            # (Plus complexe si on veut varier region/dept/arr, mais on va rester sur une approche robuste)
+            top_record = queryset.order_by('-quantite').first()
+            if top_record:
+                zone_dominante = top_record.get_zone()
+
         return Response({
             'total_productions': total_productions,
             'total_quantite': float(total_quantite),
             'par_secteur': list(par_secteur),
-            'par_annee': list(par_annee),
-            'top_produits': list(top_produits),
+            'zone_dominante': zone_dominante,
         })
     
     @action(detail=False, methods=['get'])
@@ -361,11 +368,20 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column].width = adjusted_width
         
+        # Créer le nom du fichier dynamique
+        secteur_str = request.query_params.get('secteur', 'tous')
+        produit_str = request.query_params.get('produit', 'tous')
+        annee_str = request.query_params.get('annee', 'toutes')
+        
+        filename = f"export_{secteur_str}_{produit_str}_{annee_str}_geoprod_cm.xlsx"
+        # Remplacer les espaces par des underscores pour le nom du fichier
+        filename = filename.replace(' ', '_').lower()
+
         # Créer la réponse HTTP
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = 'attachment; filename=productions_cameroun.xlsx'
+        response['Content-Disposition'] = f'attachment; filename={filename}'
         
         wb.save(response)
         return response

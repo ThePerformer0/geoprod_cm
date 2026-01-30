@@ -30,26 +30,17 @@ const PRODUITS_PAR_SECTEUR = {
         'Bovins',
         'Ovins',
         'Caprins',
-        'Porcins',
-        'Volaille',
-        'Lapins',
-        'Œufs',
-        'Lait',
-        'Viande bovine',
-        'Viande porcine',
-        'Viande de volaille'
+        'Porcins'
     ],
     peche: [
         'Pêche maritime',
         'Pêche en eau douce',
         'Pêche lacustre',
         'Pêche fluviale',
-        'Aquaculture',
         'Tilapia',
         'Silure',
         'Carpe',
-        'Crevettes',
-        'Poisson fumé'
+        'Crevettes'
     ]
 };
 

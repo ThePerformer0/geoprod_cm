@@ -28,6 +28,7 @@ urlpatterns = [
     # Pages
     path('', TemplateView.as_view(template_name='carte.html'), name='home'),
     path('carte/', TemplateView.as_view(template_name='carte.html'), name='carte'),
+    path('donnees/', TemplateView.as_view(template_name='donnees.html'), name='donnees'),
 ]
 
 if settings.DEBUG:

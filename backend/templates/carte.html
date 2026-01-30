@@ -40,18 +40,19 @@
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <i class="fas fa-map-marked-alt text-3xl"></i>
+                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo"
+                        class="h-12 w-12 object-contain bg-white rounded-lg p-1 shadow-sm">
                     <div>
                         <h1 class="text-2xl font-bold">Plateforme SIG - Cameroun</h1>
                         <p class="text-green-100 text-sm">Bassins de Production Économique</p>
                     </div>
                 </div>
                 <nav class="flex space-x-4">
-                    <a href="/" class="px-4 py-2 bg-white text-green-600 rounded-lg font-semibold">
+                    <a href="/carte/" class="px-4 py-2 bg-white text-green-600 rounded-lg font-semibold">
                         <i class="fas fa-map mr-2"></i>Carte
                     </a>
-                    <a href="/admin/" class="px-4 py-2 bg-green-700 rounded-lg hover:bg-green-600 transition">
-                        <i class="fas fa-cog mr-2"></i>Admin
+                    <a href="/donnees/" class="px-4 py-2 bg-green-700 rounded-lg hover:bg-green-600 transition">
+                        <i class="fas fa-table mr-2"></i>Données
                     </a>
                 </nav>
             </div>
