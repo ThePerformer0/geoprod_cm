@@ -64,7 +64,10 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductionSerializer
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['produit', 'region__nom', 'departement__nom', 'arrondissement__nom']
-    filterset_fields = ['secteur', 'annee', 'niveau_administratif', 'region', 'departement']
+    
+    # MODIFIEZ CETTE LIGNE CI-DESSOUS (Ajoutez 'produit') :
+    filterset_fields = ['secteur', 'produit', 'annee', 'niveau_administratif', 'region', 'departement']
+    
     ordering_fields = ['annee', 'quantite', 'produit']
     
     @action(detail=False, methods=['get'])

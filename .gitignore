@@ -56,3 +56,6 @@ lib64/
 __pycache__/
 
 description.md
+*.tex
+*.pdf
+*.docx
