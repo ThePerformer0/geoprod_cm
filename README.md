@@ -65,5 +65,10 @@ python manage.py import_sample_productions
 - `openpyxl` (Export Excel)
 - `dj-database-url`, `python-dotenv`
 
+## 🎓 Contexte Académique
+Ce projet a été réalisé dans le cadre du cours de **Traitement d'Images et SIG** à la **Faculté des Sciences de l'Université de Yaoundé 1**.
+
+**Enseignant :** Dr Hyppolyte TAPAMO
+
 ---
 © 2026 - **GeoProd_CM** | SIG Bassins de Production Cameroun

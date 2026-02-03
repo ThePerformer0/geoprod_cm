@@ -1,0 +1,156 @@
+\documentclass[a4paper,12pt]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{color}
+
+% Configuration des marges
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+% Configuration de l'entête et pied de page
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Traitement d'Images et SIG}
+\lhead{GeoProd\_CM}
+\cfoot{\thepage}
+
+% Informations du document
+\title{\textbf{Développement d'une Plateforme SIG Web pour la Visualisation des Bassins de Production au Cameroun}}
+\author{Étudiants du Master Informatique}
+\date{\today}
+
+\begin{document}
+
+% Page de garde
+\begin{titlepage}
+    \centering
+    \includegraphics[width=0.3\textwidth]{backend/static/img/logo.png}\\[1cm]
+    {\scshape\LARGE Université de Yaoundé 1 \par}
+    {\scshape\Large Faculté des Sciences \par}
+    {\scshape\Large Département d'Informatique \par}
+    \vspace{1cm}
+    {\Large Cours de Traitement d'Images et SIG \par}
+    \vspace{0.5cm}
+    {\large Enseignant : Dr Hyppolyte TAPAMO \par}
+    \vspace{2cm}
+    \rule{\linewidth}{0.5mm} \\[0.4cm]
+    {\huge\bfseries Plateforme Web SIG : GeoProd\_CM \par}
+    {\Large Visualisation et Analyse des Données de Production Agro-Pastorale \par}
+    \rule{\linewidth}{0.5mm} \\[1.5cm]
+    
+    {\large\itshape Rapport de Projet Académique \par}
+    \vspace{2cm}
+    \vfill
+    {\large Année Académique 2025-2026 \par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\chapter{Introduction}
+\section{Contexte et Problématique}
+Le Cameroun, souvent qualifié de "Grenier de l'Afrique Centrale", repose économiquement sur son secteur primaire (agriculture, élevage, pêche). Cependant, les données statistiques relatives à ces productions restent souvent dispersées dans des rapports statiques (PDF, Excel), rendant difficile leur analyse spatiale et décisionnelle.
+
+Les décideurs et acteurs économiques manquent d'outils interactifs pour visualiser rapidement :
+\begin{itemize}
+    \item Où se situent les bassins de production majeurs ?
+    \item Comment évolue la production par région ou département ?
+    \item Quelles sont les zones dominantes pour un produit spécifique (Cacao, Café, Maïs...) ?
+\end{itemize}
+
+\section{Objectifs du Projet}
+L'objectif de ce projet est de concevoir et déployer une plateforme Web SIG (\textit{Système d'Information Géographique}) capable de :
+\begin{enumerate}
+    \item Centraliser les données géographiques (découpage administratif) et statistiques.
+    \item Offrir une visualisation cartographique interactive (Choroplèthe).
+    \item Permettre l'exportation et le filtrage dynamique des données.
+\end{enumerate}
+
+Le projet est accessible publiquement à l'adresse : \url{https://geoprod-cm.onrender.com}.
+
+\chapter{Méthodologie et Analyse}
+\section{Modélisation des Données}
+Nous avons structuré notre base de données relationnelle autour de quatre entités principales pour refléter la hiérarchie administrative du Cameroun :
+\begin{itemize}
+    \item \textbf{Region} : Les 10 régions du pays.
+    \item \textbf{Departement} : Subdivisions des régions.
+    \item \textbf{Arrondissement} : Unités administratives locales.
+    \item \textbf{Production} : Table factuelle liant une quantité, un produit, une année et une zone géographique.
+\end{itemize}
+
+\section{Architecture Technique}
+Le projet suit une architecture \textbf{Client-Serveur} moderne :
+\begin{itemize}
+    \item \textbf{Backend (API)} : Développé avec \textbf{Django} et \textbf{Django REST Framework}. Il expose les données au format JSON pour l'application frontend.
+    \item \textbf{Base de Données} : \textbf{PostgreSQL} a été choisi pour sa robustesse et sa capacité à gérer des données spatiales (via PostGIS ou JSONFields).
+    \item \textbf{Frontend (UI)} : Une interface responsive construite avec HTML5, \textbf{Tailwind CSS} pour le style, et \textbf{Leaflet.js} pour le moteur cartographique.
+\end{itemize}
+
+\chapter{Implémentation Technique}
+
+\section{Visualisation Spatiale avec Leaflet}
+L'un des défis majeurs a été la représentation des données sur la carte. Nous avons opté pour une carte \textbf{Choroplèthe} (carte par plages de couleurs).
+L'algorithme implémenté côté client :
+\begin{enumerate}
+    \item Récupère les productions filtrées par l'utilisateur.
+    \item Calcule dynamiquement les seuils (min/max) de production.
+    \item Attribue une intensité de couleur (du vert clair au vert foncé) à chaque zone géographique en fonction de sa production relative.
+\end{enumerate}
+
+\section{Optimisation des Performances}
+Pour garantir une expérience fluide malgré le volume de données :
+\begin{itemize}
+    \item \textbf{Backend} : Utilisation de \texttt{select\_related} dans les requêtes Django pour éviter le problème de "N+1 query".
+    \item \textbf{Pagination} : Mise en place d'une pagination serveur (20 items/page) pour le tableau de données.
+    \item \textbf{Fichiers Statiques} : Utilisation de \textbf{Whitenoise} avec compression Gzip/Brotli pour servir les assets rapidement.
+\end{itemize}
+
+\section{Déploiement avec Docker}
+Afin d'assurer la portabilité et la reproductibilité du projet, nous avons "conteneurisé" l'application avec **Docker**.
+\begin{itemize}
+    \item Image de base : \texttt{python:3.11-slim} (légère et sécurisée).
+    \item Script d'entrée (\texttt{entrypoint.sh}) : Automatise les migrations de base de données au démarrage du conteneur.
+    \item Serveur WSGI : \textbf{Gunicorn} est utilisé pour servir l'application Python en production.
+\end{itemize}
+
+\chapter{Résultats et Fonctionnalités}
+
+\section{Interface Cartographique}
+L'utilisateur peut filtrer par Secteur (Agriculture, Élevage), Produit et Année. La carte se met à jour instantanément.
+\begin{figure}[H]
+    \centering
+    % DECOMMENTER ET AJOUTER L'IMAGE DANS LE DOSSIER
+    % \includegraphics[width=1\textwidth]{backend/static/img/screenshot_map.png}
+    \caption{Interface principale : Carte interactive des productions de Cacao dans le Centre.}
+\end{figure}
+
+\section{Tableau de Bord et Analyse}
+Une vue détaillée permet de consulter les données brutes, avec une synthèse statistique (Total, Zone dominante) et un module d'export Excel.
+\begin{figure}[H]
+    \centering
+    % DECOMMENTER ET AJOUTER L'IMAGE DANS LE DOSSIER
+    % \includegraphics[width=1\textwidth]{backend/static/img/screenshot_data.png}
+    \caption{Page de données : Synthèse statistique et tableau filtrable.}
+\end{figure}
+
+\chapter{Conclusion et Perspectives}
+Ce projet académique a permis de réaliser une chaîne complète de traitement de l'information géographique, de la base de données à la visualisation web. La plateforme \textit{GeoProd\_CM} est fonctionnelle, performante et déployée.
+
+\section*{Perspectives d'amélioration}
+\begin{itemize}
+    \item Intégration de données météorologiques en temps réel.
+    \item Développement d'une application mobile pour la collecte de données sur le terrain.
+    \item Ajout d'analyses prédictives (Machine Learning) sur les rendements agricoles.
+\end{itemize}
+
+\section*{Remerciements}
+Nous adressons nos sincères remerciements au \textbf{Dr Hyppolyte TAPAMO} pour la qualité de son enseignement en Traitement d'Images et SIG, ainsi que pour son accompagnement tout au long de ce projet.
+
+\end{document}
