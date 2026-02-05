@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'geoprod_cm',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -143,4 +144,13 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'GeoProd_CM API',
+    'DESCRIPTION': 'API publique pour l\'accès aux données de production économique du Cameroun (Agriculture, Élevage, Pêche).',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }

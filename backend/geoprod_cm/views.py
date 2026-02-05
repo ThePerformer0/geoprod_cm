@@ -7,6 +7,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -70,6 +71,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
     
     ordering_fields = ['annee', 'quantite', 'produit']
     
+    @extend_schema(exclude=True)
     @action(detail=False, methods=['get'])
     def statistiques(self, request):
         """Retourne des statistiques filtrées sur les productions pour la synthèse"""
@@ -106,6 +108,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
             'zone_dominante': zone_dominante,
         })
     
+    @extend_schema(exclude=True)
     @action(detail=False, methods=['get'])
     def filtres(self, request):
         """Retourne les valeurs disponibles pour les filtres"""
@@ -119,6 +122,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
             'produits': list(produits),
         })
     
+    @extend_schema(exclude=True)
     @action(detail=False, methods=['get'])
     def map_data(self, request):
         """
@@ -246,6 +250,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(result)
     
+    @extend_schema(exclude=True)
     @action(detail=False, methods=['get'])
     def autocomplete(self, request):
         """
@@ -297,6 +302,7 @@ class ProductionViewSet(viewsets.ReadOnlyModelViewSet):
         # Limiter à 15 résultats
         return Response(results[:15])
     
+    @extend_schema(exclude=True)
     @action(detail=False, methods=['get'])
     def export_excel(self, request):
         """
