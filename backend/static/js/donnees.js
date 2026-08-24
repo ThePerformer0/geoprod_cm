@@ -57,29 +57,53 @@ document.addEventListener('DOMContentLoaded', function () {
 function initSidebar() {
     const toggleLeft = document.getElementById('toggle-left');
     const sidebarLeft = document.getElementById('sidebar-left');
-    const mainContent = document.querySelector('main');
 
-    toggleLeft.addEventListener('click', function () {
-        sidebarLeft.classList.toggle('collapsed');
-        const icon = toggleLeft.querySelector('i');
-        icon.classList.toggle('fa-chevron-left');
-        icon.classList.toggle('fa-chevron-right');
-
-        if (sidebarLeft.classList.contains('collapsed')) {
-            mainContent.classList.add('px-16');
-        } else {
-            mainContent.classList.remove('px-16');
-        }
-    });
+    if (toggleLeft) {
+        toggleLeft.addEventListener('click', function () {
+            if (sidebarLeft.classList.contains('collapsed')) {
+                expandSidebar();
+            } else {
+                collapseSidebar();
+            }
+        });
+    }
 
     const icons = sidebarLeft.querySelectorAll('.sidebar-icons .icon-item');
     icons.forEach(icon => {
         icon.addEventListener('click', () => {
-            if (sidebarLeft.classList.contains('collapsed')) {
-                toggleLeft.click();
-            }
+            expandSidebar();
         });
     });
+}
+
+function collapseSidebar() {
+    const sidebarLeft = document.getElementById('sidebar-left');
+    const toggleLeft = document.getElementById('toggle-left');
+    if (sidebarLeft && !sidebarLeft.classList.contains('collapsed')) {
+        sidebarLeft.classList.add('collapsed');
+        if (toggleLeft) {
+            const icon = toggleLeft.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    }
+}
+
+function expandSidebar() {
+    const sidebarLeft = document.getElementById('sidebar-left');
+    const toggleLeft = document.getElementById('toggle-left');
+    if (sidebarLeft && sidebarLeft.classList.contains('collapsed')) {
+        sidebarLeft.classList.remove('collapsed');
+        if (toggleLeft) {
+            const icon = toggleLeft.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-left');
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -93,16 +117,18 @@ async function initFilterOptions() {
 
         // Remplir les années
         const anneeSelect = document.getElementById('annee');
-        data.annees.forEach(annee => {
-            const option = document.createElement('option');
-            option.value = annee;
-            option.textContent = annee;
-            anneeSelect.appendChild(option);
-        });
-
-        if (data.annees.length > 0) {
+        anneeSelect.innerHTML = '';
+        if (data.annees && data.annees.length > 0) {
+            data.annees.forEach(annee => {
+                const option = document.createElement('option');
+                option.value = annee;
+                option.textContent = annee;
+                anneeSelect.appendChild(option);
+            });
             anneeSelect.value = data.annees[0];
             state.filters.annee = data.annees[0];
+        } else {
+            anneeSelect.innerHTML = '<option value="">— Aucune année —</option>';
         }
 
     } catch (error) {
@@ -144,7 +170,7 @@ function setupEventListeners() {
 
         if (query.length < 2) {
             resultsContainer.innerHTML = '';
-            resultsContainer.classList.add('hidden');
+            resultsContainer.style.display = 'none';
             return;
         }
 
@@ -198,7 +224,7 @@ function displayAutocompleteResults(results) {
     container.innerHTML = '';
 
     if (results.length === 0) {
-        container.classList.add('hidden');
+        container.style.display = 'none';
         return;
     }
 
@@ -219,13 +245,13 @@ function displayAutocompleteResults(results) {
             document.getElementById('lieu-search').value = item.nom;
             document.getElementById('lieu-id').value = item.id;
             document.getElementById('lieu-type').value = item.type;
-            container.classList.add('hidden');
+            container.style.display = 'none';
         });
 
         container.appendChild(div);
     });
 
-    container.classList.remove('hidden');
+    container.style.display = 'block';
 }
 
 // ============================================================================
@@ -253,6 +279,9 @@ async function updateAnalysis() {
         updateDataTable();
         updateSynthesis();
         updatePageInfo();
+
+        // La sidebar se replie automatiquement quand les données apparaissent
+        collapseSidebar();
 
     } catch (err) {
         console.error('Erreur chargement données:', err);
@@ -335,24 +364,23 @@ function updateDataTable() {
     tbody.innerHTML = '';
 
     if (!state.data.results || state.data.results.length === 0) {
-        emptyState.classList.remove('hidden');
+        emptyState.style.display = 'flex';
         updatePaginationUI(0);
         return;
     }
 
-    emptyState.classList.add('hidden');
+    emptyState.style.display = 'none';
 
-    state.data.results.forEach(row => {
+    state.data.results.forEach((row, idx) => {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50 transition';
         tr.innerHTML = `
-            <td class="px-6 py-4 text-sm text-gray-500 font-medium italic">${row.region_nom || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-500 italic">${row.departement_nom || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-500 italic">${row.arrondissement_nom || '-'}</td>
-            <td class="px-6 py-4 text-sm font-bold text-gray-700">${row.produit}</td>
-            <td class="px-6 py-4 text-sm font-bold text-green-600">${formatNum(row.quantite)}</td>
-            <td class="px-6 py-4 text-sm text-gray-400 font-medium">${row.unite}</td>
-            <td class="px-6 py-4 text-sm text-gray-600 text-center font-bold">${row.annee}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;color:${row.region_nom ? '#374151' : '#d1d5db'};font-style:${row.region_nom ? 'normal' : 'italic'};">${row.region_nom || '\u2014'}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;color:${row.departement_nom ? '#374151' : '#d1d5db'};font-style:${row.departement_nom ? 'normal' : 'italic'};">${row.departement_nom || '\u2014'}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;color:${row.arrondissement_nom ? '#374151' : '#d1d5db'};font-style:${row.arrondissement_nom ? 'normal' : 'italic'};">${row.arrondissement_nom || '\u2014'}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;font-weight:700;color:#111827;">${row.produit}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;font-weight:700;color:#15803d;font-variant-numeric:tabular-nums;">${formatNum(row.quantite)}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.8125rem;color:#9ca3af;font-weight:500;">${row.unite}</td>
+            <td style="padding:.75rem 1.125rem;font-size:.875rem;font-weight:600;color:#374151;text-align:center;">${row.annee}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -376,11 +404,73 @@ function updatePaginationUI(totalCount) {
 // ============================================================================
 
 function showTableLoading(show) {
-    document.getElementById('table-loading').classList.toggle('hidden', !show);
-    document.getElementById('data-table-body').classList.toggle('opacity-30', show);
+    const loadingEl = document.getElementById('table-loading');
+    const tbody = document.getElementById('data-table-body');
+    loadingEl.style.display = show ? 'flex' : 'none';
+    tbody.style.opacity = show ? '0.3' : '1';
 }
 
 function formatNum(num) {
     if (!num) return '0';
     return new Intl.NumberFormat('fr-FR').format(num);
+}
+
+// ============================================================================
+// TOAST NOTIFICATIONS
+// ============================================================================
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = {
+        error:   'fa-circle-xmark',
+        success: 'fa-circle-check',
+        warning: 'fa-triangle-exclamation',
+        info:    'fa-circle-info'
+    };
+    const colors = {
+        error:   { bg: 'rgba(254,242,242,.97)', color: '#991b1b', border: 'rgba(254,202,202,.5)' },
+        success: { bg: 'rgba(240,253,244,.97)', color: '#14532d', border: 'rgba(187,247,208,.5)' },
+        warning: { bg: 'rgba(255,251,235,.97)', color: '#92400e', border: 'rgba(253,230,138,.5)' },
+        info:    { bg: 'rgba(239,246,255,.97)', color: '#1e40af', border: 'rgba(191,219,254,.5)' }
+    };
+
+    const c = colors[type] || colors.info;
+    const icon = icons[type] || icons.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        display:flex; align-items:flex-start; gap:.75rem;
+        padding:.875rem 1.125rem;
+        border-radius:12px;
+        box-shadow:0 8px 24px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+        font-family:'Inter',sans-serif; font-size:.875rem; font-weight:500;
+        max-width:360px;
+        background:${c.bg}; color:${c.color};
+        border:1px solid ${c.border};
+        backdrop-filter:blur(12px);
+        animation:toastSlideIn .35s cubic-bezier(.34,1.56,.64,1) forwards;
+    `;
+
+    toast.innerHTML = `
+        <i class="fas ${icon}" style="font-size:1rem;flex-shrink:0;margin-top:.05rem;"></i>
+        <span style="flex:1;line-height:1.4;">${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;opacity:.5;padding:0;color:inherit;font-size:.75rem;margin-left:.25rem;flex-shrink:0;">
+            <i class="fas fa-xmark"></i>
+        </button>
+    `;
+
+    if (!document.getElementById('toast-kf')) {
+        const s = document.createElement('style');
+        s.id = 'toast-kf';
+        s.textContent = `@keyframes toastSlideIn{from{opacity:0;transform:translateX(100%) scale(.9)}to{opacity:1;transform:translateX(0) scale(1)}}`;
+        document.head.appendChild(s);
+    }
+
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'toastSlideIn .3s cubic-bezier(.4,0,.2,1) reverse forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
 }

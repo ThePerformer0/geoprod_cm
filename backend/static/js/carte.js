@@ -48,8 +48,8 @@ const PRODUITS_PAR_SECTEUR = {
 let map = null;
 let currentLayer = null;
 let currentFilters = {
-    secteur: '',
-    produit: '',
+    secteur: 'agriculture',
+    produit: 'Cacao',
     annee: '',
     niveau: 'region'
 };
@@ -58,12 +58,12 @@ let currentFilters = {
 // INITIALISATION
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     initMap();
     initSidebarToggles();
-    loadFilterOptions();
     setupEventListeners();
-    showNoDataMessage();
+    await loadFilterOptions();
+    setDefaultFilters();
 });
 
 // ============================================================================
@@ -147,22 +147,54 @@ async function loadFilterOptions() {
 
         // Charger les années
         const anneeSelect = document.getElementById('annee');
-        data.annees.forEach(annee => {
-            const option = document.createElement('option');
-            option.value = annee;
-            option.textContent = annee;
-            anneeSelect.appendChild(option);
-        });
-
-        // Sélectionner l'année la plus récente par défaut
-        if (data.annees.length > 0) {
+        anneeSelect.innerHTML = '';
+        if (data.annees && data.annees.length > 0) {
+            data.annees.forEach(annee => {
+                const option = document.createElement('option');
+                option.value = annee;
+                option.textContent = annee;
+                anneeSelect.appendChild(option);
+            });
             anneeSelect.value = data.annees[0];
+            currentFilters.annee = data.annees[0];
+        } else {
+            anneeSelect.innerHTML = '<option value="">— Aucune année —</option>';
         }
 
     } catch (error) {
         console.error('Erreur lors du chargement des filtres:', error);
-        showError('Erreur lors du chargement des options de filtres');
+        showToast('Erreur lors du chargement des options de filtres', 'error');
     }
+}
+
+function setDefaultFilters() {
+    const secteurSelect = document.getElementById('secteur');
+    secteurSelect.value = 'agriculture';
+    updateProductList('agriculture');
+    const produitSelect = document.getElementById('produit');
+    produitSelect.value = 'Cacao';
+    
+    // Déclencher le chargement immédiat des données
+    applyFilters();
+}
+
+function updateProductList(secteur) {
+    const produitSelect = document.getElementById('produit');
+    if (!secteur) {
+        produitSelect.innerHTML = '<option value="">-- Sélectionner un secteur d\'abord --</option>';
+        produitSelect.disabled = true;
+        return;
+    }
+
+    const produits = PRODUITS_PAR_SECTEUR[secteur] || [];
+    produitSelect.innerHTML = '<option value="">-- Tous les produits --</option>';
+    produits.forEach(produit => {
+        const option = document.createElement('option');
+        option.value = produit;
+        option.textContent = produit;
+        produitSelect.appendChild(option);
+    });
+    produitSelect.disabled = false;
 }
 
 // ============================================================================
@@ -172,27 +204,7 @@ async function loadFilterOptions() {
 function setupEventListeners() {
     // Changement de secteur -> charger les produits prédéfinis (INSTANTANÉ)
     document.getElementById('secteur').addEventListener('change', function () {
-        const secteur = this.value;
-        const produitSelect = document.getElementById('produit');
-
-        if (!secteur) {
-            produitSelect.innerHTML = '<option value="">-- Sélectionner un secteur d\'abord --</option>';
-            produitSelect.disabled = true;
-            return;
-        }
-
-        // Charger instantanément les produits prédéfinis
-        const produits = PRODUITS_PAR_SECTEUR[secteur] || [];
-
-        produitSelect.innerHTML = '<option value="">-- Tous les produits --</option>';
-        produits.forEach(produit => {
-            const option = document.createElement('option');
-            option.value = produit;
-            option.textContent = produit;
-            produitSelect.appendChild(option);
-        });
-
-        produitSelect.disabled = false;
+        updateProductList(this.value);
     });
 
     // Soumission du formulaire
@@ -204,19 +216,7 @@ function setupEventListeners() {
     // Réinitialisation des filtres
     document.getElementById('reset-filters').addEventListener('click', function () {
         document.getElementById('filter-form').reset();
-        document.getElementById('produit').disabled = true;
-        document.getElementById('produit').innerHTML = '<option value="">-- Sélectionner un secteur d\'abord --</option>';
-
-        if (currentLayer) {
-            map.removeLayer(currentLayer);
-            currentLayer = null;
-        }
-
-        hideInfoSidebar();
-        showNoDataMessage();
-
-        // Cacher la légende
-        document.getElementById('legend').classList.add('hidden');
+        setDefaultFilters();
     });
 }
 
@@ -235,7 +235,7 @@ async function applyFilters() {
 
     // Validation
     if (!currentFilters.secteur || !currentFilters.annee) {
-        alert('Veuillez sélectionner au moins un secteur et une année');
+        showToast('Veuillez sélectionner au moins un secteur et une année.', 'warning');
         return;
     }
 
@@ -274,9 +274,9 @@ async function applyFilters() {
         console.error('Erreur lors du chargement des données:', error);
         hideLoading();
         if (error.name === 'TimeoutError') {
-            showError('Le chargement des données a pris trop de temps. Veuillez réessayer.');
+            showToast('Le chargement a pris trop de temps. Veuillez réessayer.', 'error');
         } else {
-            showError('Erreur lors du chargement des données cartographiques. Veuillez réessayer.');
+            showToast('Erreur lors du chargement des données. Veuillez réessayer.', 'error');
         }
     }
 }
@@ -310,20 +310,17 @@ function displayMapData(geojsonData) {
         style: function (feature) {
             return {
                 fillColor: getColor(feature.properties.quantite, colorScale),
-                weight: 2,
+                weight: 1.5,
                 opacity: 1,
-                color: '#ffffff',
-                fillOpacity: 0.7
+                color: 'rgba(255,255,255,0.8)',
+                fillOpacity: 0.78
             };
         },
         onEachFeature: function (feature, layer) {
             // Tooltip au survol
             const props = feature.properties;
-            const tooltipContent = `
-                <strong>${props.nom}</strong><br>
-                ${formatNumber(props.quantite)} ${props.unite}
-            `;
-            layer.bindTooltip(tooltipContent);
+            const tooltipContent = `<strong>${props.nom}</strong><br>${formatNumber(props.quantite)} ${props.unite}`;
+            layer.bindTooltip(tooltipContent, { sticky: true });
 
             // Événements
             layer.on({
@@ -383,8 +380,9 @@ function highlightFeature(e) {
     const layer = e.target;
     layer.setStyle({
         weight: 3,
-        color: '#16a34a',
-        fillOpacity: 0.9
+        color: '#15803d',
+        fillOpacity: 0.92,
+        dashArray: ''
     });
     layer.bringToFront();
 }
@@ -408,13 +406,13 @@ function selectFeature(e) {
         if (props.departement_nom) hierarchie.push(props.departement_nom);
         hierarchie.push(props.nom);
 
-        document.getElementById('zone-hierarchie-text').textContent = hierarchie.join(' > ');
-        document.getElementById('zone-hierarchie').classList.remove('hidden');
+        document.getElementById('zone-hierarchie-text').textContent = hierarchie.join(' › ');
+        document.getElementById('zone-hierarchie').style.display = 'block';
     } else {
-        document.getElementById('zone-hierarchie').classList.add('hidden');
+        document.getElementById('zone-hierarchie').style.display = 'none';
     }
 
-    document.getElementById('zone-details').classList.remove('hidden');
+    document.getElementById('zone-details').style.display = 'block';
     showInfoSidebar();
 }
 
@@ -429,7 +427,7 @@ function displayInfo(metadata) {
         metadata.niveau === 'departement' ? 'Départements' : 'Arrondissements';
 
     document.getElementById('info-title').innerHTML = `
-        <i class="fas fa-chart-bar mr-2 text-green-600"></i>
+        <i class="fas fa-chart-bar" style="margin-right:.5rem;color:#16a34a;"></i>
         ${metadata.secteur ? metadata.secteur.charAt(0).toUpperCase() + metadata.secteur.slice(1) : 'Production'}
     `;
     document.getElementById('info-subtitle').textContent =
@@ -462,7 +460,7 @@ function displayLegend(scale, unite) {
         colorBox.style.backgroundColor = colors[i];
 
         const label = document.createElement('span');
-        label.className = 'text-xs text-gray-700';
+        label.style.cssText = 'font-family:Inter,sans-serif;font-size:.75rem;color:#374151;';
 
         if (i === scale.length - 1) {
             label.textContent = `≥ ${formatNumber(scale[i])} ${unite}`;
@@ -482,13 +480,13 @@ function displayLegend(scale, unite) {
     noDataColor.className = 'legend-color';
     noDataColor.style.backgroundColor = '#e5e7eb';
     const noDataLabel = document.createElement('span');
-    noDataLabel.className = 'text-xs text-gray-700';
+    noDataLabel.style.cssText = 'font-family:Inter,sans-serif;font-size:.75rem;color:#374151;';
     noDataLabel.textContent = 'Pas de données';
     noDataItem.appendChild(noDataColor);
     noDataItem.appendChild(noDataLabel);
     legendContent.appendChild(noDataItem);
 
-    legend.classList.remove('hidden');
+    legend.style.display = 'block';
 }
 
 // ============================================================================
@@ -496,19 +494,23 @@ function displayLegend(scale, unite) {
 // ============================================================================
 
 function showLoading() {
-    document.getElementById('loading').classList.remove('hidden');
+    const el = document.getElementById('loading');
+    el.style.display = 'flex';
 }
 
 function hideLoading() {
-    document.getElementById('loading').classList.add('hidden');
+    const el = document.getElementById('loading');
+    el.style.display = 'none';
 }
 
 function showNoDataMessage() {
-    document.getElementById('no-data-message').classList.remove('hidden');
+    const el = document.getElementById('no-data-message');
+    el.style.display = 'block';
 }
 
 function hideNoDataMessage() {
-    document.getElementById('no-data-message').classList.add('hidden');
+    const el = document.getElementById('no-data-message');
+    el.style.display = 'none';
 }
 
 function showInfoSidebar() {
@@ -522,11 +524,78 @@ function showInfoSidebar() {
 function hideInfoSidebar() {
     const sidebar = document.getElementById('sidebar-right');
     sidebar.classList.add('collapsed');
-    document.getElementById('zone-details').classList.add('hidden');
+    document.getElementById('zone-details').style.display = 'none';
 }
 
 function showError(message) {
-    alert(message); // Peut être remplacé par une notification plus élégante
+    showToast(message, 'error');
+}
+
+// ============================================================================
+// TOAST NOTIFICATIONS
+// ============================================================================
+
+function showToast(message, type = 'error') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = {
+        error:   'fa-circle-xmark',
+        success: 'fa-circle-check',
+        warning: 'fa-triangle-exclamation'
+    };
+    const colors = {
+        error:   { bg: 'rgba(254,242,242,.97)', color: '#991b1b', border: 'rgba(254,202,202,.5)' },
+        success: { bg: 'rgba(240,253,244,.97)', color: '#14532d', border: 'rgba(187,247,208,.5)' },
+        warning: { bg: 'rgba(255,251,235,.97)', color: '#92400e', border: 'rgba(253,230,138,.5)' }
+    };
+
+    const c = colors[type] || colors.error;
+    const icon = icons[type] || icons.error;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        display:flex; align-items:flex-start; gap:.75rem;
+        padding:.875rem 1.125rem;
+        border-radius:12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+        font-family:'Inter',sans-serif; font-size:.875rem; font-weight:500;
+        max-width:360px; pointer-events:all;
+        background:${c.bg}; color:${c.color};
+        border:1px solid ${c.border};
+        backdrop-filter:blur(12px);
+        animation: toastSlideIn .35s cubic-bezier(.34,1.56,.64,1) forwards;
+        position:relative;
+    `;
+
+    toast.innerHTML = `
+        <i class="fas ${icon}" style="font-size:1rem; flex-shrink:0; margin-top:.05rem;"></i>
+        <span style="flex:1; line-height:1.4;">${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;opacity:.5;padding:0;color:inherit;font-size:.75rem;margin-left:.25rem;flex-shrink:0;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">
+            <i class="fas fa-xmark"></i>
+        </button>
+    `;
+
+    // Inject keyframe if not already done
+    if (!document.getElementById('toast-keyframes')) {
+        const style = document.createElement('style');
+        style.id = 'toast-keyframes';
+        style.textContent = `
+            @keyframes toastSlideIn {
+                from { opacity:0; transform:translateX(100%) scale(.9); }
+                to   { opacity:1; transform:translateX(0) scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    container.appendChild(toast);
+
+    // Auto-dismiss after 4.5s
+    setTimeout(() => {
+        toast.style.animation = 'toastSlideIn .3s cubic-bezier(.4,0,.2,1) reverse forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
 }
 
 function formatNumber(num) {

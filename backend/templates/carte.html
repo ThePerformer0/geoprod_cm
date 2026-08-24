@@ -5,290 +5,717 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carte Interactive - Bassins de Production Cameroun</title>
+    <title>Carte Interactive — GeoProd CM | Bassins de Production Cameroun</title>
+    <meta name="description" content="Plateforme SIG interactive pour visualiser les bassins de production agricole, d'élevage et de pêche au Cameroun.">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Font Awesome (Free CDN officiel) -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/carte.css' %}">
 
-    <script>
-        // Configuration Tailwind personnalisée - Thème Vert
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#16a34a',
-                        secondary: '#15803d',
-                    }
-                }
-            }
+    <style>
+        body { margin: 0; background: #f0f4f0; }
+        html, body { height: 100%; }
+
+        /* ── Header layout ── */
+        .app-header {
+            background: linear-gradient(135deg, #14532d 0%, #15803d 40%, #16a34a 70%, #22c55e 100%);
+            box-shadow: 0 4px 24px rgba(20, 83, 45, .35), inset 0 1px 0 rgba(255,255,255,.15);
+            border-bottom: 1px solid rgba(255,255,255,.12);
+            position: relative;
+            overflow: hidden;
+            z-index: 2000;
         }
-    </script>
+        .app-header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+        .header-inner {
+            max-width: 100%;
+            padding: .875rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: .875rem;
+        }
+        .header-logo-wrap {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,.15);
+            border: 1.5px solid rgba(255,255,255,.35);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.3);
+            overflow: hidden;
+            transition: all .25s ease;
+            flex-shrink: 0;
+        }
+        .header-logo-wrap:hover { transform: scale(1.06) rotate(-2deg); }
+        .header-logo-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+
+        .header-texts h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: white;
+            margin: 0;
+            line-height: 1.2;
+            letter-spacing: -.02em;
+            text-shadow: 0 2px 8px rgba(0,0,0,.25);
+        }
+        .header-texts p {
+            font-family: 'Inter', sans-serif;
+            font-size: .7rem;
+            font-weight: 500;
+            color: rgba(255,255,255,.75);
+            margin: 0;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .header-nav { display: flex; align-items: center; gap: .5rem; }
+
+        .nav-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .45rem 1rem;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all .2s ease;
+            letter-spacing: .01em;
+        }
+        .nav-pill-active {
+            background: rgba(255,255,255,.95);
+            color: #15803d;
+            box-shadow: 0 2px 12px rgba(0,0,0,.15);
+        }
+        .nav-pill-inactive {
+            background: rgba(255,255,255,.1);
+            color: rgba(255,255,255,.9);
+            border: 1px solid rgba(255,255,255,.2);
+        }
+        .nav-pill-inactive:hover {
+            background: rgba(255,255,255,.2);
+            color: white;
+        }
+
+        /* ── Map layout ── */
+        .map-container {
+            position: relative;
+            height: calc(100vh - 66px);
+        }
+
+        #map { width: 100%; height: 100%; z-index: 1; }
+
+        /* ── Sidebar ── */
+        #sidebar-left {
+            width: 296px;
+        }
+        #sidebar-right {
+            width: 320px;
+        }
+
+        /* ── Sidebar inner layout ── */
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: .625rem;
+            padding: 1.25rem 1.25rem .875rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .sidebar-header-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: #f0fdf4;
+            border: 1.5px solid #dcfce7;
+            display: flex; align-items: center; justify-content: center;
+            color: #16a34a;
+            font-size: .8125rem;
+            flex-shrink: 0;
+        }
+        .sidebar-header h2 {
+            font-family: 'Inter', sans-serif;
+            font-size: .9375rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+
+        /* ── Filter form ── */
+        .filter-form-body { padding: 1rem 1.25rem 1.25rem; }
+        .filter-group { margin-bottom: .875rem; }
+        .filter-label {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            font-family: 'Inter', sans-serif;
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #6b7280;
+            margin-bottom: .35rem;
+        }
+        .filter-label i { font-size: .65rem; }
+        .filter-select {
+            width: 100%;
+            padding: .5rem .8rem;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem;
+            color: #374151;
+            background: white;
+            transition: all .2s;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .6rem center;
+            background-size: 1rem;
+            padding-right: 2rem;
+            cursor: pointer;
+        }
+        .filter-select:focus {
+            outline: none;
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22,163,74,.15);
+            background-color: #f0fdf4;
+        }
+        .filter-select:disabled {
+            background-color: #f9fafb;
+            color: #9ca3af;
+            cursor: not-allowed;
+            opacity: .7;
+        }
+
+        .filter-divider {
+            height: 1px;
+            background: #f3f4f6;
+            margin: 1rem 0;
+        }
+
+        .btn-apply {
+            width: 100%;
+            padding: .65rem 1rem;
+            background: linear-gradient(135deg, #15803d, #16a34a);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: .875rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            box-shadow: 0 4px 14px rgba(22,163,74,.35);
+            transition: all .2s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: .5rem;
+        }
+        .btn-apply::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+            transform: translateX(-100%);
+            transition: transform .5s;
+        }
+        .btn-apply:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(22,163,74,.45);
+        }
+        .btn-apply:hover::before { transform: translateX(100%); }
+        .btn-apply:active { transform: translateY(0); }
+
+        .btn-reset {
+            width: 100%;
+            padding: .55rem 1rem;
+            background: #f9fafb;
+            color: #6b7280;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            transition: all .2s;
+        }
+        .btn-reset:hover { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+
+        /* ── Legend ── */
+        .legend-wrap {
+            margin: 0 1.25rem 1.25rem;
+            background: #f8fffe;
+            border: 1.5px solid #d1fae5;
+            border-radius: 10px;
+            padding: .75rem 1rem;
+        }
+        .legend-title {
+            font-family: 'Inter', sans-serif;
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #16a34a;
+            margin-bottom: .5rem;
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .2rem 0;
+        }
+        .legend-swatch {
+            width: 20px; height: 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,.08);
+            flex-shrink: 0;
+        }
+        .legend-item span {
+            font-family: 'Inter', sans-serif;
+            font-size: .75rem;
+            color: #374151;
+        }
+
+        /* ── Right sidebar — stats ── */
+        .info-section { padding: 1.25rem; }
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: .875rem;
+            background: white;
+            border: 1.5px solid #f0f0f0;
+            border-radius: 10px;
+            padding: .75rem .875rem;
+            margin-bottom: .625rem;
+            transition: all .2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-row::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #16a34a, #22c55e);
+            border-radius: 3px 0 0 3px;
+            transform: scaleY(0);
+            transition: transform .25s ease;
+        }
+        .stat-row:hover { 
+            border-color: rgba(22,163,74,.2); 
+            box-shadow: 0 4px 12px rgba(22,163,74,.1);
+            transform: translateX(2px);
+        }
+        .stat-row:hover::before { transform: scaleY(1); }
+
+        .stat-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .875rem;
+            flex-shrink: 0;
+        }
+        .stat-texts { flex: 1; min-width: 0; }
+        .stat-label {
+            font-family: 'Inter', sans-serif;
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #9ca3af;
+        }
+        .stat-value {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.0625rem;
+            font-weight: 800;
+            letter-spacing: -.02em;
+            margin-top: .1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Zone selected details ── */
+        .zone-card {
+            background: #f8fafc;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            padding: .875rem 1rem;
+            margin-top: 1rem;
+            animation: fadeIn .3s ease;
+        }
+        .zone-card-title {
+            font-family: 'Inter', sans-serif;
+            font-size: .75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #16a34a;
+            margin-bottom: .75rem;
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+        }
+        .zone-field { margin-bottom: .6rem; }
+        .zone-field:last-child { margin-bottom: 0; }
+        .zone-field-label {
+            font-family: 'Inter', sans-serif;
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #9ca3af;
+        }
+        .zone-field-value {
+            font-family: 'Inter', sans-serif;
+            font-size: .9375rem;
+            font-weight: 700;
+            color: #111827;
+            margin-top: .1rem;
+        }
+        .zone-field-value.highlight { color: #15803d; }
+
+        /* ── Loading overlay ── */
+        #loading {
+            background: rgba(255,255,255,.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .loader-ring {
+            width: 48px; height: 48px;
+            border: 3px solid #f0fdf4;
+            border-top-color: #16a34a;
+            border-right-color: #22c55e;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-text {
+            font-family: 'Inter', sans-serif;
+            font-size: .875rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* ── No data message ── */
+        #no-data-message {
+            background: rgba(255,255,255,.95);
+            backdrop-filter: blur(16px);
+            border: 1.5px solid #e5e7eb;
+            border-radius: 20px;
+            box-shadow: 0 20px 48px rgba(0,0,0,.12);
+            max-width: 320px;
+            width: 90%;
+        }
+        .no-data-icon {
+            width: 72px; height: 72px;
+            background: #f0fdf4;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.25rem;
+            font-size: 1.75rem;
+            color: #16a34a;
+        }
+        .no-data-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: .5rem;
+        }
+        .no-data-text {
+            font-family: 'Inter', sans-serif;
+            font-size: .875rem;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        /* ── Toast container ── */
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg relative z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo"
-                        class="h-12 w-12 object-contain bg-white rounded-lg p-1 shadow-sm">
-                    <div>
-                        <h1 class="text-2xl font-bold">Plateforme SIG - Cameroun</h1>
-                        <p class="text-green-100 text-sm">Bassins de Production Économique</p>
-                    </div>
+<body>
+    <!-- ─── Header ──────────────────────────────────────────────────────────── -->
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="header-brand">
+                <div class="header-logo-wrap">
+                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo">
                 </div>
-                <nav class="flex space-x-4">
-                    <a href="/carte/" class="px-4 py-2 bg-white text-green-600 rounded-lg font-semibold">
-                        <i class="fas fa-map mr-2"></i>Carte
-                    </a>
-                    <a href="/donnees/" class="px-4 py-2 bg-green-700 rounded-lg hover:bg-green-600 transition">
-                        <i class="fas fa-table mr-2"></i>Données
-                    </a>
-                </nav>
+                <div class="header-texts">
+                    <h1>Plateforme SIG — Cameroun</h1>
+                    <p>Bassins de Production Économique</p>
+                </div>
             </div>
+            <nav class="header-nav">
+                <a href="/carte/" class="nav-pill nav-pill-active" id="nav-carte">
+                    <i class="fas fa-map"></i> Carte
+                </a>
+                <a href="/donnees/" class="nav-pill nav-pill-inactive" id="nav-donnees">
+                    <i class="fas fa-table-cells"></i> Données
+                </a>
+            </nav>
         </div>
     </header>
 
-    <!-- Main Content - Carte plein écran -->
-    <div class="relative h-[calc(100vh-80px)]">
-        <!-- Carte Centrale (plein écran) -->
-        <div id="map" class="w-full h-full"></div>
+    <!-- ─── Map area ─────────────────────────────────────────────────────────── -->
+    <div class="map-container">
+        <!-- Map -->
+        <div id="map"></div>
 
-        <!-- Loading Overlay -->
-        <div id="loading" class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50 hidden">
-            <div class="text-center">
-                <i class="fas fa-spinner fa-spin text-5xl text-green-600 mb-4"></i>
-                <p class="text-gray-700 font-semibold">Chargement des données...</p>
+        <!-- Loading overlay -->
+        <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:500;background:rgba(255,255,255,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+            <div style="text-align:center">
+                <div class="loader-ring"></div>
+                <p class="loader-text">Chargement des données…</p>
             </div>
         </div>
 
-        <!-- Message d'absence de données -->
+        <!-- No data message -->
         <div id="no-data-message"
-            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-8 rounded-lg shadow-xl text-center hidden z-40">
-            <i class="fas fa-info-circle text-6xl text-green-500 mb-4"></i>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Aucune donnée disponible</h3>
-            <p class="text-gray-600">Veuillez sélectionner des filtres et cliquer sur "Appliquer"</p>
+            style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; padding:2rem 2.5rem; display:none; z-index:40;background:rgba(255,255,255,.95);backdrop-filter:blur(16px);border:1.5px solid #e5e7eb;border-radius:20px;box-shadow:0 20px 48px rgba(0,0,0,.12);max-width:320px;width:90%;">
+            <div class="no-data-icon">
+                <i class="fas fa-map-location-dot"></i>
+            </div>
+            <h3 class="no-data-title">Aucune donnée à afficher</h3>
+            <p class="no-data-text">Sélectionnez un secteur et une année,<br>puis cliquez sur <strong>Appliquer</strong>.</p>
         </div>
 
-        <!-- Sidebar Gauche - Filtres (Overlay) -->
-        <aside id="sidebar-left" class="w-80 bg-white overflow-y-auto">
-            <!-- Barre d'icônes (visible quand rétracté) -->
+        <!-- ─── Sidebar Gauche — Filtres ──────────────────────────────────────── -->
+        <aside id="sidebar-left" style="position:absolute;top:0;bottom:0;left:0;z-index:1000;overflow-y:auto;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);box-shadow:4px 0 24px rgba(0,0,0,.08);border-right:1px solid rgba(0,0,0,.06);transition:width .3s cubic-bezier(.4,0,.2,1);">
+            <!-- Collapsed icon rail -->
             <div class="sidebar-icons">
-                <div class="icon-item" title="Filtres">
-                    <i class="fas fa-filter text-xl"></i>
-                </div>
-                <div class="icon-item" title="Secteur">
-                    <i class="fas fa-layer-group text-xl"></i>
-                </div>
-                <div class="icon-item" title="Produit">
-                    <i class="fas fa-seedling text-xl"></i>
-                </div>
-                <div class="icon-item" title="Année">
-                    <i class="fas fa-calendar-alt text-xl"></i>
-                </div>
-                <div class="icon-item" title="Niveau">
-                    <i class="fas fa-sitemap text-xl"></i>
-                </div>
+                <div class="icon-item" title="Filtres"><i class="fas fa-sliders"></i></div>
+                <div class="icon-item" title="Secteur"><i class="fas fa-layer-group"></i></div>
+                <div class="icon-item" title="Produit"><i class="fas fa-seedling"></i></div>
+                <div class="icon-item" title="Année"><i class="fas fa-calendar-days"></i></div>
+                <div class="icon-item" title="Niveau"><i class="fas fa-sitemap"></i></div>
             </div>
 
-            <!-- Contenu principal (visible quand déployé) -->
-            <div class="sidebar-content p-6">
-                <!-- Toggle Button -->
+            <!-- Expanded content -->
+            <div class="sidebar-content" style="position:relative;">
+                <!-- Toggle button -->
                 <button id="toggle-left"
-                    class="absolute -right-3 top-6 bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-green-700 transition z-10">
+                    style="position:absolute;right:-14px;top:1.25rem;background:linear-gradient(135deg,#15803d,#16a34a);color:white;border:2px solid rgba(255,255,255,.6);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:.625rem;box-shadow:0 4px 12px rgba(22,163,74,.4);cursor:pointer;transition:all .2s;z-index:10;">
                     <i class="fas fa-chevron-left"></i>
                 </button>
 
-                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                    <i class="fas fa-filter mr-2 text-green-600"></i>
-                    Filtres
-                </h2>
-
-                <form id="filter-form" class="space-y-5">
-                    <!-- Secteur -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-layer-group mr-1 text-green-600"></i>
-                            Secteur
-                        </label>
-                        <select id="secteur" name="secteur"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                            <option value="">-- Sélectionner --</option>
-                            <option value="agriculture">Agriculture</option>
-                            <option value="elevage">Élevage</option>
-                            <option value="peche">Pêche</option>
-                        </select>
+                <!-- Header -->
+                <div class="sidebar-header">
+                    <div class="sidebar-header-icon">
+                        <i class="fas fa-sliders"></i>
                     </div>
+                    <h2>Filtres</h2>
+                </div>
 
-                    <!-- Produit -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-seedling mr-1 text-green-600"></i>
-                            Produit
-                        </label>
-                        <select id="produit" name="produit"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            disabled>
-                            <option value="">-- Sélectionner un secteur d'abord --</option>
-                        </select>
-                    </div>
+                <!-- Form -->
+                <div class="filter-form-body">
+                    <form id="filter-form">
+                        <!-- Secteur -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="secteur">
+                                <i class="fas fa-layer-group" style="color:#16a34a;"></i> Secteur
+                            </label>
+                            <select id="secteur" name="secteur" class="filter-select">
+                                <option value="agriculture" selected>Agriculture</option>
+                                <option value="elevage">Élevage</option>
+                                <option value="peche">Pêche</option>
+                            </select>
+                        </div>
 
-                    <!-- Année -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-calendar-alt mr-1 text-purple-600"></i>
-                            Année
-                        </label>
-                        <select id="annee" name="annee"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                            <option value="">-- Sélectionner --</option>
-                        </select>
-                    </div>
+                        <!-- Produit -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="produit">
+                                <i class="fas fa-seedling" style="color:#16a34a;"></i> Produit
+                            </label>
+                            <select id="produit" name="produit" class="filter-select">
+                                <option value="">— Tous les produits —</option>
+                            </select>
+                        </div>
 
-                    <!-- Niveau Administratif -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-sitemap mr-1 text-orange-600"></i>
-                            Niveau Administratif
-                        </label>
-                        <select id="niveau" name="niveau"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                            <option value="region">Région</option>
-                            <option value="departement">Département</option>
-                            <option value="arrondissement">Arrondissement</option>
-                        </select>
-                    </div>
+                        <!-- Année -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="annee">
+                                <i class="fas fa-calendar-days" style="color:#8b5cf6;"></i> Année
+                            </label>
+                            <select id="annee" name="annee" class="filter-select">
+                                <option value="">— Sélectionner —</option>
+                            </select>
+                        </div>
 
-                    <!-- Bouton Appliquer -->
-                    <button type="submit"
-                        class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition shadow-lg flex items-center justify-center">
-                        <i class="fas fa-search mr-2"></i>
-                        Appliquer les filtres
-                    </button>
+                        <!-- Niveau administratif -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="niveau">
+                                <i class="fas fa-sitemap" style="color:#f59e0b;"></i> Niveau Administratif
+                            </label>
+                            <select id="niveau" name="niveau" class="filter-select">
+                                <option value="region">Région</option>
+                                <option value="departement">Département</option>
+                                <option value="arrondissement">Arrondissement</option>
+                            </select>
+                        </div>
 
-                    <!-- Bouton Réinitialiser -->
-                    <button type="button" id="reset-filters"
-                        class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300 transition flex items-center justify-center">
-                        <i class="fas fa-redo mr-2"></i>
-                        Réinitialiser
-                    </button>
-                </form>
+                        <div class="filter-divider"></div>
 
-                <!-- Légende -->
-                <div id="legend" class="mt-8 p-4 bg-gray-50 rounded-lg hidden">
-                    <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
-                        <i class="fas fa-palette mr-2 text-green-600"></i>
-                        Légende
-                    </h3>
-                    <div id="legend-content" class="space-y-2">
-                        <!-- Généré dynamiquement par JS -->
+                        <button type="submit" class="btn-apply" id="btn-apply">
+                            <i class="fas fa-magnifying-glass"></i>
+                            Appliquer les filtres
+                        </button>
+                        <button type="button" id="reset-filters" class="btn-reset">
+                            <i class="fas fa-rotate-left"></i>
+                            Réinitialiser
+                        </button>
+                    </form>
+
+                    <!-- Légende -->
+                    <div id="legend" class="hidden" style="margin-top:1.25rem;">
+                        <div class="legend-wrap">
+                            <div class="legend-title">
+                                <i class="fas fa-palette"></i> Légende
+                            </div>
+                            <div id="legend-content"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <!-- Sidebar Droite - Informations (Overlay) -->
-        <aside id="sidebar-right" class="w-96 bg-white overflow-y-auto collapsed">
-            <!-- Barre d'icônes (visible quand rétracté) -->
+        <!-- ─── Sidebar Droite — Informations ────────────────────────────────── -->
+        <aside id="sidebar-right" class="collapsed" style="position:absolute;top:0;bottom:0;right:0;z-index:1000;overflow-y:auto;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);box-shadow:-4px 0 24px rgba(0,0,0,.08);border-left:1px solid rgba(0,0,0,.06);transition:width .3s cubic-bezier(.4,0,.2,1);">
+            <!-- Collapsed icon rail -->
             <div class="sidebar-icons">
-                <div class="icon-item" title="Informations">
-                    <i class="fas fa-chart-bar text-xl"></i>
-                </div>
-                <div class="icon-item" title="Production">
-                    <i class="fas fa-chart-line text-xl"></i>
-                </div>
-                <div class="icon-item" title="Zone dominante">
-                    <i class="fas fa-trophy text-xl"></i>
-                </div>
-                <div class="icon-item" title="Statistiques">
-                    <i class="fas fa-map-marker-alt text-xl"></i>
-                </div>
+                <div class="icon-item" title="Statistiques"><i class="fas fa-chart-bar"></i></div>
+                <div class="icon-item" title="Production"><i class="fas fa-chart-line"></i></div>
+                <div class="icon-item" title="Zone dominante"><i class="fas fa-trophy"></i></div>
+                <div class="icon-item" title="Zones"><i class="fas fa-location-dot"></i></div>
             </div>
 
-            <!-- Contenu principal (visible quand déployé) -->
-            <div class="sidebar-content p-6">
-                <!-- Toggle Button -->
+            <!-- Expanded content -->
+            <div class="sidebar-content" style="position:relative;">
+                <!-- Toggle button -->
                 <button id="toggle-right"
-                    class="absolute -left-3 top-6 bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-green-700 transition z-10">
+                    style="position:absolute;left:-14px;top:1.25rem;background:linear-gradient(135deg,#15803d,#16a34a);color:white;border:2px solid rgba(255,255,255,.6);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:.625rem;box-shadow:0 4px 12px rgba(22,163,74,.4);cursor:pointer;transition:all .2s;z-index:10;">
                     <i class="fas fa-chevron-right"></i>
                 </button>
 
-                <!-- Titre dynamique -->
-                <div class="mb-6">
-                    <h2 id="info-title" class="text-xl font-bold text-gray-800 flex items-center">
-                        <i class="fas fa-chart-bar mr-2 text-green-600"></i>
-                        Informations
-                    </h2>
-                    <p id="info-subtitle" class="text-sm text-gray-500 mt-1"></p>
-                </div>
-
-                <!-- Indicateurs synthétiques -->
-                <div class="space-y-4 mb-6">
-                    <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600">Production Totale</p>
-                                <p id="total-production" class="text-2xl font-bold text-green-600">-</p>
-                            </div>
-                            <i class="fas fa-chart-line text-3xl text-green-400"></i>
-                        </div>
+                <!-- Header -->
+                <div class="sidebar-header">
+                    <div class="sidebar-header-icon">
+                        <i class="fas fa-chart-bar"></i>
                     </div>
-
-                    <div class="bg-gradient-to-r from-emerald-50 to-emerald-100 p-4 rounded-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600">Zone Dominante</p>
-                                <p id="zone-dominante" class="text-lg font-bold text-emerald-600">-</p>
-                            </div>
-                            <i class="fas fa-trophy text-3xl text-emerald-400"></i>
-                        </div>
-                    </div>
-
-                    <div class="bg-gradient-to-r from-teal-50 to-teal-100 p-4 rounded-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600">Zones avec données</p>
-                                <p id="nombre-zones" class="text-2xl font-bold text-teal-600">-</p>
-                            </div>
-                            <i class="fas fa-map-marker-alt text-3xl text-teal-400"></i>
-                        </div>
+                    <div>
+                        <h2 id="info-title">Statistiques</h2>
+                        <p id="info-subtitle" style="font-family:'Inter',sans-serif;font-size:.7rem;color:#6b7280;margin:.1rem 0 0;"></p>
                     </div>
                 </div>
 
-                <!-- Détails de la zone sélectionnée -->
-                <div id="zone-details" class="hidden">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-t pt-4">
-                        <i class="fas fa-info-circle mr-2 text-green-600"></i>
-                        Zone Sélectionnée
-                    </h3>
-                    <div class="bg-gray-50 p-4 rounded-lg space-y-3">
-                        <div>
-                            <p class="text-xs text-gray-500 uppercase">Nom</p>
-                            <p id="zone-nom" class="text-lg font-semibold text-gray-800">-</p>
+                <!-- Stats -->
+                <div class="info-section">
+                    <div class="stat-row">
+                        <div class="stat-icon" style="background:#f0fdf4;color:#16a34a;">
+                            <i class="fas fa-chart-line"></i>
                         </div>
-                        <div>
-                            <p class="text-xs text-gray-500 uppercase">Production</p>
-                            <p id="zone-production" class="text-xl font-bold text-green-600">-</p>
+                        <div class="stat-texts">
+                            <div class="stat-label">Production Totale</div>
+                            <div class="stat-value" id="total-production" style="color:#15803d;">—</div>
                         </div>
-                        <div id="zone-hierarchie" class="hidden">
-                            <p class="text-xs text-gray-500 uppercase">Hiérarchie</p>
-                            <p id="zone-hierarchie-text" class="text-sm text-gray-700">-</p>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-icon" style="background:#fefce8;color:#ca8a04;">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="stat-texts">
+                            <div class="stat-label">Zone Dominante</div>
+                            <div class="stat-value" id="zone-dominante" style="color:#111827;">—</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-icon" style="background:#eff6ff;color:#3b82f6;">
+                            <i class="fas fa-location-dot"></i>
+                        </div>
+                        <div class="stat-texts">
+                            <div class="stat-label">Zones avec données</div>
+                            <div class="stat-value" id="nombre-zones" style="color:#111827;">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Zone sélectionnée -->
+                    <div id="zone-details" class="hidden">
+                        <div class="zone-card">
+                            <div class="zone-card-title">
+                                <i class="fas fa-map-pin"></i> Zone sélectionnée
+                            </div>
+                            <div class="zone-field">
+                                <div class="zone-field-label">Nom</div>
+                                <div class="zone-field-value" id="zone-nom">—</div>
+                            </div>
+                            <div class="zone-field">
+                                <div class="zone-field-label">Production</div>
+                                <div class="zone-field-value highlight" id="zone-production">—</div>
+                            </div>
+                            <div class="zone-field hidden" id="zone-hierarchie">
+                                <div class="zone-field-label">Hiérarchie</div>
+                                <div class="zone-field-value" id="zone-hierarchie-text" style="font-size:.8125rem;font-weight:600;color:#6b7280;">—</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </aside>
     </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

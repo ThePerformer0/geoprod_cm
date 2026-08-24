@@ -5,224 +5,692 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyse des Données - Bassins de Production Cameroun</title>
+    <title>Analyse des Données — GeoProd CM | Bassins de Production Cameroun</title>
+    <meta name="description" content="Tableau de bord des données de production agricole, d'élevage et de pêche au Cameroun avec filtres et export Excel.">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Font Awesome (Free CDN officiel) -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/carte.css' %}">
     <link rel="stylesheet" href="{% static 'css/donnees.css' %}">
 
-    <script>
-        // Configuration Tailwind personnalisée - Thème Vert
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#16a34a',
-                        secondary: '#15803d',
-                    }
-                }
-            }
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #f0f4f0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
-    </script>
+
+        /* ── Header ── */
+        .app-header {
+            background: linear-gradient(135deg, #14532d 0%, #15803d 40%, #16a34a 70%, #22c55e 100%);
+            box-shadow: 0 4px 24px rgba(20, 83, 45, .35), inset 0 1px 0 rgba(255,255,255,.15);
+            border-bottom: 1px solid rgba(255,255,255,.12);
+            position: relative;
+            overflow: hidden;
+            z-index: 50;
+        }
+        .app-header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+        .header-inner {
+            padding: .875rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+        .header-brand { display: flex; align-items: center; gap: .875rem; }
+        .header-logo-wrap {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,.15);
+            border: 1.5px solid rgba(255,255,255,.35);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            transition: all .25s ease;
+            flex-shrink: 0;
+        }
+        .header-logo-wrap:hover { transform: scale(1.06) rotate(-2deg); }
+        .header-logo-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+        .header-texts h1 {
+            font-size: 1.25rem; font-weight: 800; color: white;
+            margin: 0; line-height: 1.2; letter-spacing: -.02em;
+            text-shadow: 0 2px 8px rgba(0,0,0,.25);
+        }
+        .header-texts p {
+            font-size: .7rem; font-weight: 500;
+            color: rgba(255,255,255,.75); margin: 0;
+            letter-spacing: .06em; text-transform: uppercase;
+        }
+        .header-nav { display: flex; align-items: center; gap: .5rem; }
+        .nav-pill {
+            display: inline-flex; align-items: center; gap: .4rem;
+            padding: .45rem 1rem; border-radius: 8px;
+            font-size: .8125rem; font-weight: 600;
+            text-decoration: none; transition: all .2s ease;
+        }
+        .nav-pill-active {
+            background: rgba(255,255,255,.95); color: #15803d;
+            box-shadow: 0 2px 12px rgba(0,0,0,.15);
+        }
+        .nav-pill-inactive {
+            background: rgba(255,255,255,.1); color: rgba(255,255,255,.9);
+            border: 1px solid rgba(255,255,255,.2);
+        }
+        .nav-pill-inactive:hover { background: rgba(255,255,255,.2); color: white; }
+
+        /* ── Main layout ── */
+        .page-body {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 66px);
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar-panel {
+            width: 280px;
+            min-width: 280px;
+            background: rgba(255,255,255,.96);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(0,0,0,.06);
+            box-shadow: 4px 0 24px rgba(0,0,0,.06);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 30;
+        }
+
+        /* Collapsed sidebar on donnees page */
+        .sidebar-panel.collapsed { width: 64px; min-width: 64px; }
+        .sidebar-panel.collapsed .sidebar-full { display: none; }
+        .sidebar-panel.collapsed .sidebar-icons { display: flex; }
+
+        .sidebar-icons {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.25rem 0;
+            gap: .875rem;
+        }
+        .icon-item {
+            width: 40px; height: 40px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: #16a34a;
+            cursor: pointer;
+            transition: all .2s;
+            border: 1.5px solid transparent;
+        }
+        .icon-item:hover {
+            background: rgba(22,163,74,.1);
+            border-color: rgba(22,163,74,.25);
+        }
+
+        .sidebar-full { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+        .sidebar-toggle-btn {
+            position: absolute;
+            right: -14px;
+            top: 1.125rem;
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #15803d, #16a34a);
+            color: white;
+            border: 2px solid rgba(255,255,255,.6);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .625rem;
+            box-shadow: 0 4px 12px rgba(22,163,74,.4);
+            cursor: pointer;
+            transition: all .2s;
+            z-index: 10;
+        }
+        .sidebar-toggle-btn:hover { transform: scale(1.15); }
+
+        /* Sidebar header */
+        .sidebar-header {
+            display: flex; align-items: center; gap: .625rem;
+            padding: 1.125rem 1.125rem .875rem;
+            border-bottom: 1px solid #f3f4f6;
+            flex-shrink: 0;
+        }
+        .sidebar-header-icon {
+            width: 30px; height: 30px;
+            border-radius: 7px;
+            background: #f0fdf4; border: 1.5px solid #dcfce7;
+            display: flex; align-items: center; justify-content: center;
+            color: #16a34a; font-size: .75rem; flex-shrink: 0;
+        }
+        .sidebar-header h2 {
+            font-size: .9375rem; font-weight: 700; color: #111827; margin: 0;
+        }
+
+        /* Form body */
+        .filter-form-body { padding: .875rem 1.125rem 1.125rem; overflow-y: auto; flex: 1; }
+        .filter-group { margin-bottom: .75rem; }
+        .filter-label {
+            display: flex; align-items: center; gap: .3rem;
+            font-size: .68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .07em;
+            color: #6b7280; margin-bottom: .3rem;
+        }
+        .filter-select {
+            width: 100%;
+            padding: .475rem .75rem;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem;
+            color: #374151;
+            background: white;
+            transition: all .2s;
+            appearance: none; -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .5rem center;
+            background-size: 1rem;
+            padding-right: 1.75rem;
+            cursor: pointer;
+        }
+        .filter-select:focus {
+            outline: none;
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22,163,74,.15);
+            background-color: #f0fdf4;
+        }
+
+        /* Lieu input */
+        .lieu-input-wrap { position: relative; }
+        .lieu-input {
+            width: 100%;
+            padding: .475rem .75rem .475rem 2rem;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem;
+            color: #374151;
+            background: white;
+            transition: all .2s;
+        }
+        .lieu-input:focus {
+            outline: none;
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22,163,74,.15);
+        }
+        .lieu-search-icon {
+            position: absolute; left: .6rem; top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af; font-size: .75rem; pointer-events: none;
+        }
+
+        #autocomplete-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+            z-index: 50;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .filter-divider { height: 1px; background: #f3f4f6; margin: .875rem 0; }
+
+        .btn-apply {
+            width: 100%;
+            padding: .6rem 1rem;
+            background: linear-gradient(135deg, #15803d, #16a34a);
+            color: white; border: none;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem; font-weight: 700;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: .45rem;
+            box-shadow: 0 4px 14px rgba(22,163,74,.35);
+            transition: all .2s; margin-bottom: .45rem;
+            position: relative; overflow: hidden;
+        }
+        .btn-apply::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+            transform: translateX(-100%); transition: transform .5s;
+        }
+        .btn-apply:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(22,163,74,.45); }
+        .btn-apply:hover::before { transform: translateX(100%); }
+
+        .btn-reset {
+            width: 100%;
+            padding: .5rem 1rem;
+            background: #f9fafb; color: #6b7280;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem; font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: .4rem;
+            transition: all .2s;
+        }
+        .btn-reset:hover { background: #f3f4f6; color: #374151; }
+
+        /* ── Main content area ── */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem 2.5rem;
+            background: #f0f4f0;
+        }
+
+        .content-inner { max-width: 1100px; margin: 0 auto; }
+
+        /* ── Page title bar ── */
+        .title-bar {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 1.75rem;
+        }
+        .page-title {
+            font-size: 1.5rem; font-weight: 800;
+            color: #111827; letter-spacing: -.03em; margin: 0;
+        }
+        .page-subtitle {
+            font-size: .875rem; color: #6b7280; margin: .3rem 0 0;
+        }
+
+        .btn-export {
+            display: inline-flex; align-items: center; gap: .5rem;
+            padding: .6rem 1.25rem;
+            background: linear-gradient(135deg, #059669, #16a34a);
+            color: white; border: none; border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: .875rem; font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(5,150,105,.35);
+            transition: all .25s;
+            position: relative; overflow: hidden; flex-shrink: 0;
+        }
+        .btn-export::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+            transform: translateX(-100%); transition: transform .5s;
+        }
+        .btn-export:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5,150,105,.45); }
+        .btn-export:hover::before { transform: translateX(100%); }
+
+        /* ── KPI grid ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 14px;
+            padding: 1.125rem 1.25rem;
+            border: 1.5px solid #f0f0f0;
+            transition: all .25s;
+            position: relative; overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #16a34a, #22c55e);
+            transform: scaleX(0); transform-origin: left;
+            transition: transform .3s ease;
+        }
+        .kpi-card:hover {
+            border-color: rgba(22,163,74,.2);
+            box-shadow: 0 8px 24px rgba(22,163,74,.1);
+            transform: translateY(-2px);
+        }
+        .kpi-card:hover::before { transform: scaleX(1); }
+
+        .kpi-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .875rem;
+            margin-bottom: .75rem;
+        }
+        .kpi-label {
+            font-size: .68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .07em;
+            color: #9ca3af; margin-bottom: .3rem;
+        }
+        .kpi-value {
+            font-size: 1.375rem; font-weight: 800;
+            letter-spacing: -.03em; line-height: 1.1;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .kpi-sub { font-size: .7rem; color: #9ca3af; margin-top: .3rem; }
+
+        /* ── Data table panel ── */
+        .table-panel {
+            background: white;
+            border-radius: 16px;
+            border: 1.5px solid #f0f0f0;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,.04);
+        }
+
+        .table-panel table { width: 100%; border-collapse: collapse; }
+
+        .table-panel thead th {
+            background: #f8fafc;
+            padding: .875rem 1.125rem;
+            font-size: .7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .07em;
+            color: #6b7280;
+            border-bottom: 2px solid #f0f0f0;
+            white-space: nowrap;
+            text-align: left;
+        }
+
+        .table-panel tbody td {
+            padding: .8rem 1.125rem;
+            font-size: .875rem; color: #374151;
+            border-bottom: 1px solid #f9fafb;
+            vertical-align: middle;
+        }
+
+        .table-panel tbody tr:last-child td { border-bottom: none; }
+
+        .table-panel tbody tr {
+            transition: background .15s;
+        }
+        .table-panel tbody tr:hover { background: #f0fdf4; }
+
+        .td-quantite { font-weight: 700 !important; color: #15803d !important; font-variant-numeric: tabular-nums; }
+        .td-annee { text-align: center; font-weight: 600; color: #374151; }
+        .td-empty { color: #d1d5db; }
+
+        /* Badge for secteur */
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: .7rem; font-weight: 600;
+        }
+        .badge-agri { background: #dcfce7; color: #166534; }
+        .badge-elev { background: #fef9c3; color: #854d0e; }
+        .badge-pech { background: #dbeafe; color: #1e40af; }
+
+        /* ── Pagination ── */
+        .pagination-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .875rem 1.25rem;
+            border-top: 1.5px solid #f0f0f0;
+        }
+        .pagination-info { font-size: .8125rem; color: #6b7280; }
+        .pagination-btns { display: flex; gap: .5rem; }
+        .btn-page {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .4rem .9rem;
+            background: white; border: 1.5px solid #e5e7eb;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            font-size: .8125rem; font-weight: 600; color: #374151;
+            cursor: pointer; transition: all .2s;
+        }
+        .btn-page:hover:not(:disabled) { background: #f0fdf4; border-color: #22c55e; color: #15803d; }
+        .btn-page:disabled { opacity: .35; cursor: not-allowed; }
+
+        /* ── Empty / loading states ── */
+        .state-center {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 3rem 2rem;
+            text-align: center;
+        }
+        .state-icon {
+            width: 56px; height: 56px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; color: #d1d5db;
+            margin-bottom: .875rem;
+        }
+        .state-text { font-size: .875rem; color: #9ca3af; }
+        .state-spinner {
+            width: 36px; height: 36px;
+            border: 3px solid #f0fdf4;
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            margin-bottom: .875rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Toast ── */
+        #toast-container {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            z-index: 9999; display: flex; flex-direction: column; gap: .75rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+            .main-content { padding: 1.25rem; }
+        }
+    </style>
 </head>
 
-<body class="bg-gray-50 flex flex-col min-h-screen">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg relative z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo"
-                        class="h-12 w-12 object-contain bg-white rounded-lg p-1 shadow-sm">
-                    <div>
-                        <h1 class="text-2xl font-bold">Plateforme SIG - Cameroun</h1>
-                        <p class="text-green-100 text-sm">Bassins de Production Économique</p>
-                    </div>
+<body>
+    <!-- ─── Header ──────────────────────────────────────────────────────────── -->
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="header-brand">
+                <div class="header-logo-wrap">
+                    <img src="{% static 'img/logo.png' %}" alt="GeoProd CM Logo">
                 </div>
-                <nav class="flex space-x-4">
-                    <a href="/carte/" class="px-4 py-2 bg-green-700 rounded-lg hover:bg-green-600 transition">
-                        <i class="fas fa-map mr-2"></i>Carte
-                    </a>
-                    <a href="/donnees/" class="px-4 py-2 bg-white text-green-600 rounded-lg font-semibold">
-                        <i class="fas fa-table mr-2"></i>Données
-                    </a>
-                </nav>
+                <div class="header-texts">
+                    <h1>Plateforme SIG — Cameroun</h1>
+                    <p>Bassins de Production Économique</p>
+                </div>
             </div>
+            <nav class="header-nav">
+                <a href="/carte/" class="nav-pill nav-pill-inactive">
+                    <i class="fas fa-map"></i> Carte
+                </a>
+                <a href="/donnees/" class="nav-pill nav-pill-active">
+                    <i class="fas fa-table-cells"></i> Données
+                </a>
+            </nav>
         </div>
     </header>
 
-    <!-- Main Content Area with Sidebar -->
-    <div class="relative flex-grow flex h-[calc(100vh-80px)] overflow-hidden">
+    <!-- ─── Page Body ─────────────────────────────────────────────────────────── -->
+    <div class="page-body">
 
-        <!-- Sidebar Gauche - Filtres -->
-        <aside id="sidebar-left"
-            class="w-80 bg-white border-r border-gray-200 shadow-xl z-30 transition-all duration-300 collapsed">
-            <!-- Barre d'icônes -->
+        <!-- Sidebar Gauche -->
+        <aside id="sidebar-left" class="sidebar-panel collapsed">
+            <!-- Icon rail (collapsed) -->
             <div class="sidebar-icons">
-                <div class="icon-item" title="Filtres">
-                    <i class="fas fa-filter text-xl"></i>
-                </div>
-                <div class="icon-item" title="Secteur">
-                    <i class="fas fa-layer-group text-xl"></i>
-                </div>
-                <div class="icon-item" title="Produit">
-                    <i class="fas fa-seedling text-xl"></i>
-                </div>
-                <div class="icon-item" title="Lieu">
-                    <i class="fas fa-map-marker-alt text-xl"></i>
-                </div>
+                <div class="icon-item" title="Filtres"><i class="fas fa-sliders"></i></div>
+                <div class="icon-item" title="Secteur"><i class="fas fa-layer-group"></i></div>
+                <div class="icon-item" title="Produit"><i class="fas fa-seedling"></i></div>
+                <div class="icon-item" title="Lieu"><i class="fas fa-location-dot"></i></div>
             </div>
 
-            <!-- Contenu principal -->
-            <div class="sidebar-content p-6 h-full overflow-y-auto">
-                <button id="toggle-left"
-                    class="absolute -right-3 top-6 bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-green-700 transition z-10">
+            <!-- Expanded content -->
+            <div class="sidebar-full">
+                <button id="toggle-left" class="sidebar-toggle-btn">
                     <i class="fas fa-chevron-right"></i>
                 </button>
 
-                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                    <i class="fas fa-filter mr-2 text-green-600"></i>
-                    Filtres d'Analyse
-                </h2>
+                <div class="sidebar-header">
+                    <div class="sidebar-header-icon"><i class="fas fa-sliders"></i></div>
+                    <h2>Filtres d'Analyse</h2>
+                </div>
 
-                <form id="filter-form" class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Secteur</label>
-                        <select id="secteur" name="secteur"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                            <option value="agriculture">Agriculture</option>
-                            <option value="elevage">Élevage</option>
-                            <option value="peche">Pêche</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Produit</label>
-                        <select id="produit" name="produit"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Année</label>
-                        <select id="annee" name="annee"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                        </select>
-                    </div>
-
-                    <div class="relative">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Lieu (Région, Dépt...)</label>
-                        <div class="relative">
-                            <input type="text" id="lieu-search" placeholder="Cameroun entier..."
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 pl-10"
-                                autocomplete="off">
-                            <i
-                                class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                            <input type="hidden" id="lieu-id">
-                            <input type="hidden" id="lieu-type">
+                <div class="filter-form-body">
+                    <form id="filter-form">
+                        <div class="filter-group">
+                            <label class="filter-label" for="secteur">
+                                <i class="fas fa-layer-group" style="color:#16a34a;"></i> Secteur
+                            </label>
+                            <select id="secteur" name="secteur" class="filter-select">
+                                <option value="agriculture">Agriculture</option>
+                                <option value="elevage">Élevage</option>
+                                <option value="peche">Pêche</option>
+                            </select>
                         </div>
-                        <div id="autocomplete-results"
-                            class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl hidden overflow-hidden">
+
+                        <div class="filter-group">
+                            <label class="filter-label" for="produit">
+                                <i class="fas fa-seedling" style="color:#16a34a;"></i> Produit
+                            </label>
+                            <select id="produit" name="produit" class="filter-select"></select>
                         </div>
-                    </div>
 
-                    <div class="space-y-3 pt-4 border-t border-gray-100">
-                        <button type="submit"
-                            class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-md flex items-center justify-center">
-                            <i class="fas fa-sync-alt mr-2"></i> Appliquer
-                        </button>
-                        <button type="button" id="reset-filters"
-                            class="w-full bg-gray-100 text-gray-600 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
-                            Réinitialiser
-                        </button>
-                    </div>
-                </form>
+                        <div class="filter-group">
+                            <label class="filter-label" for="annee">
+                                <i class="fas fa-calendar-days" style="color:#8b5cf6;"></i> Année
+                            </label>
+                            <select id="annee" name="annee" class="filter-select"></select>
+                        </div>
 
+                        <div class="filter-group" style="position:relative;">
+                            <label class="filter-label" for="lieu-search">
+                                <i class="fas fa-location-dot" style="color:#f59e0b;"></i> Lieu (Région, Dépt…)
+                            </label>
+                            <div class="lieu-input-wrap">
+                                <i class="fas fa-magnifying-glass lieu-search-icon"></i>
+                                <input type="text" id="lieu-search" placeholder="Cameroun entier…"
+                                    class="lieu-input" autocomplete="off">
+                                <input type="hidden" id="lieu-id">
+                                <input type="hidden" id="lieu-type">
+                            </div>
+                            <div id="autocomplete-results" class="hidden"></div>
+                        </div>
+
+                        <div class="filter-divider"></div>
+
+                        <button type="submit" class="btn-apply" id="btn-apply">
+                            <i class="fas fa-rotate"></i> Appliquer
+                        </button>
+                        <button type="button" id="reset-filters" class="btn-reset">
+                            <i class="fas fa-rotate-left"></i> Réinitialiser
+                        </button>
+                    </form>
+                </div>
             </div>
         </aside>
 
-        <!-- Main Content (Table + Synthesis) -->
-        <main class="flex-grow p-8 px-16 overflow-y-auto bg-gray-50 transition-all duration-300">
-            <div class="max-w-6xl mx-auto">
-                <div class="flex items-center justify-between mb-8">
+        <!-- ─── Main content ──────────────────────────────────────────────────── -->
+        <main class="main-content">
+            <div class="content-inner">
+
+                <!-- Title bar -->
+                <div class="title-bar">
                     <div>
-                        <h2 id="page-title" class="text-2xl font-bold text-gray-800">Analyse de la Production</h2>
-                        <p id="page-subtitle" class="text-gray-500">Synthèse des données issues de la base SIG</p>
+                        <h2 id="page-title" class="page-title">Analyse de la Production</h2>
+                        <p id="page-subtitle" class="page-subtitle">Synthèse des données issues de la base SIG</p>
                     </div>
-                    <button id="export-excel"
-                        class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition shadow-md flex items-center">
-                        <i class="fas fa-file-excel mr-2"></i> Export Excel
+                    <button id="export-excel" class="btn-export">
+                        <i class="fas fa-file-excel"></i> Export Excel
                     </button>
                 </div>
 
-                <!-- Synthèse Section (Replacement for Graphs) -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Production Totale</p>
-                        <p id="synth-total" class="text-2xl font-bold text-green-600">-</p>
-                        <div class="mt-2 text-xs text-gray-400">Pour les filtres sélectionnés</div>
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#f0fdf4;color:#16a34a;">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="kpi-label">Production Totale</div>
+                        <div class="kpi-value" id="synth-total" style="color:#15803d;">—</div>
+                        <div class="kpi-sub">Pour les filtres sélectionnés</div>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Zone Principale</p>
-                        <p id="synth-top-zone" class="text-xl font-bold text-gray-800 truncate">-</p>
-                        <div class="mt-2 text-xs text-gray-400">Plus forte production</div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#fefce8;color:#ca8a04;">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="kpi-label">Zone Principale</div>
+                        <div class="kpi-value" id="synth-top-zone" style="color:#111827;">—</div>
+                        <div class="kpi-sub">Plus forte production</div>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Nombre d'Entrées</p>
-                        <p id="synth-count" class="text-2xl font-bold text-gray-800">-</p>
-                        <div class="mt-2 text-xs text-gray-400">Total des records trouvés</div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#eff6ff;color:#3b82f6;">
+                            <i class="fas fa-list-ol"></i>
+                        </div>
+                        <div class="kpi-label">Nombre d'Entrées</div>
+                        <div class="kpi-value" id="synth-count" style="color:#111827;">—</div>
+                        <div class="kpi-sub">Total des records trouvés</div>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Secteur Dominant</p>
-                        <p id="synth-top-secteur" class="text-xl font-bold text-emerald-600">-</p>
-                        <div class="mt-2 text-xs text-gray-400">Répartition majeure</div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#fdf4ff;color:#a855f7;">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="kpi-label">Secteur Dominant</div>
+                        <div class="kpi-value" id="synth-top-secteur" style="color:#7c3aed;">—</div>
+                        <div class="kpi-sub">Répartition majeure</div>
                     </div>
                 </div>
 
-                <!-- Table Panel -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 border-b border-gray-100">
+                <!-- Data Table -->
+                <div class="table-panel">
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Région</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Département</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Arrondissement</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Produit</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Quantité</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm">Unité</th>
-                                    <th class="px-6 py-4 font-bold text-gray-700 text-sm text-center">Année</th>
+                                    <th>Région</th>
+                                    <th>Département</th>
+                                    <th>Arrondissement</th>
+                                    <th>Produit</th>
+                                    <th>Quantité</th>
+                                    <th>Unité</th>
+                                    <th style="text-align:center;">Année</th>
                                 </tr>
                             </thead>
-                            <tbody id="data-table-body" class="divide-y divide-gray-50">
-                            </tbody>
+                            <tbody id="data-table-body"></tbody>
                         </table>
                     </div>
 
-                    <div id="table-empty" class="py-24 text-center hidden">
-                        <i class="fas fa-database text-6xl text-gray-100 mb-4"></i>
-                        <p class="text-gray-400 italic">Aucune donnée trouvée</p>
+                    <!-- Empty state -->
+                    <div id="table-empty" class="state-center hidden">
+                        <div class="state-icon"><i class="fas fa-database"></i></div>
+                        <p class="state-text">Aucune donnée trouvée pour ces filtres</p>
                     </div>
-                    <div id="table-loading" class="py-24 text-center">
-                        <i class="fas fa-circle-notch fa-spin text-4xl text-green-600 mb-4"></i>
-                        <p class="text-gray-500">Chargement des données...</p>
+
+                    <!-- Loading state -->
+                    <div id="table-loading" class="state-center">
+                        <div class="state-spinner"></div>
+                        <p class="state-text">Chargement des données…</p>
                     </div>
 
                     <!-- Pagination -->
-                    <div
-                        class="bg-white px-8 py-6 flex items-center justify-between border-t border-gray-100 font-medium">
-                        <p id="pagination-info" class="text-sm text-gray-500">---</p>
-                        <div class="flex space-x-3">
-                            <button id="prev-page"
-                                class="px-5 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-30">Précédent</button>
-                            <button id="next-page"
-                                class="px-5 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-30">Suivant</button>
+                    <div class="pagination-bar">
+                        <p id="pagination-info" class="pagination-info">—</p>
+                        <div class="pagination-btns">
+                            <button id="prev-page" class="btn-page" disabled>
+                                <i class="fas fa-chevron-left"></i> Précédent
+                            </button>
+                            <button id="next-page" class="btn-page" disabled>
+                                Suivant <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -230,7 +698,10 @@
         </main>
     </div>
 
-    <!-- Scripts -->
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <!-- JS -->
     <script src="{% static 'js/donnees.js' %}"></script>
 </body>
 
